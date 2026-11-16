@@ -41,6 +41,9 @@ Order: A + C + E in parallel now, then B, D, F.
 ## Blockers (user action needed)
 - none
 
+## Standing user instruction (2026-11-16)
+- Token saving: once the only remaining work needs FF++ downloads/preprocessing, do NOT write speculative scripts or extra code. End the turn and wait for the user's "continue" (ntfy "queue finished" / download DONE). No polling.
+
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.
 - On return: ops/status.sh once.
