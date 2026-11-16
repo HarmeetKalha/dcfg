@@ -1,0 +1,8 @@
+# DCFG job queue. One job per line:   <job_id> | <shell command>
+#  - job_id matches [A-Za-z0-9_.-]+ ; it names runs/<job_id>/.
+#  - Lines starting with '#' and blank lines are ignored.
+#  - A job is skipped if runs/<job_id>/DONE or runs/<job_id>/FAILED exists.
+#  - Commands run via `bash -lc` from the repo root with DCFG_JOB_ID and DCFG_RUN_DIR set;
+#    they must auto-resume from their own checkpoints (retried up to 3 times).
+#  - New lines may be appended while the runner is active.
+smoke_gpu_01 | python ops/smoke_gpu.py --seconds 180

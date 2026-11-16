@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)", "Bash(python3:*)", "Bash(.venv/bin/python:*)", "Bash(pytest:*)", "Bash(uv:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)",
+      "Bash(git show:*)", "Bash(git branch:*)", "Bash(git clone:*)", "Bash(git rev-parse:*)",
+      "Bash(bash ops/*)", "Bash(ops/*)", "Bash(nvidia-smi:*)", "Bash(ls:*)", "Bash(tail:*)", "Bash(head:*)",
+      "Bash(grep:*)", "Bash(wc:*)", "Bash(mkdir:*)", "Bash(cp:*)", "Bash(mv:*)", "Bash(schtasks.exe:*)"
+    ],
+    "ask": [
+      "Bash(sudo:*)", "Bash(git push:*)", "Bash(rm:*)"
+    ]
+  }
+}

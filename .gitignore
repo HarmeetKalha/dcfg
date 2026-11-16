@@ -1,0 +1,15 @@
+.venv/
+runs/
+third_party/
+*.pt
+*.pth
+*.ckpt
+__pycache__/
+*.pyc
+.pytest_cache/
+wandb/
+data
+*:Zone.Identifier
+.dcfg_env
+.claude/settings.local.json
+*.egg-info/
