@@ -8,8 +8,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 wandb/
-data
+/data
 *:Zone.Identifier
 .dcfg_env
 .claude/settings.local.json
 *.egg-info/
+.env*
+*.log
