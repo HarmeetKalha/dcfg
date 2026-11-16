@@ -268,13 +268,14 @@ Validation (for early stopping only): clean, q50, q30, blur σ2, noise σ10, mix
 | 2 | `dcfg_jointft_xception` | DCFG + detector fine-tuned jointly | Xception | 42 |
 | 2 | `dcfg_nolive_xception` | DCFG with sensor randomly initialized (no LIVE pretraining) | Xception | 42 |
 | 2 | `gate_nosensor_xception` | Gate sees only DCT energy stats, no sensor | Xception | 42 |
+| 2 | `dcfg_frozensensor_xception` | DCFG with the LIVE-pretrained sensor frozen (everything else identical) | Xception | 42 |
 | 2 | `dcfg_xception_s43/s44`, `fixed_xception_s43/s44` | Seed repeats | Xception | 43, 44 |
 | 3 | `*_mkfanet` | Same as Tier 1 | MkfaNet | 42 |
 
 `augft` answers the obvious reviewer question: "Is the gain just from training on degraded data?" `dcfg_jointft` answers: "Does the module still add something on top of augmentation fine-tuning?"
 
 ### 7.5 Optimization defaults
-AdamW; module lr 1e-3 (gate/fixed), sensor lr 1e-4; detector fine-tune lr 2e-5; weight decay 1e-4; cosine schedule with 1 epoch warmup; AMP fp16 for the detector forward, **DCT and gate in fp32** (autocast disabled inside the module); batch size as large as fits (start 32, reduce for UCF/EffNet-B4 if OOM); class-balanced sampling (real:fake 1:1). Max 30 epochs, early stopping on the val selection metric with patience 6. Checkpoint every epoch **and** every 2000 steps (mid-epoch resume uses a per-epoch permutation seeded by `seed + epoch`, so batches already seen can be skipped exactly).
+AdamW; module lr 1e-3 (gate/fixed), sensor lr 1e-4; detector fine-tune lr 2e-5; weight decay 1e-4; cosine schedule with 1 epoch warmup; AMP fp16 for the detector forward, **DCT and gate in fp32** (autocast disabled inside the module); batch size as large as fits (start 32, reduce for UCF/EffNet-B4 if OOM); class-balanced sampling (real:fake 1:1): **full epochs**: every fake frame each epoch, real frames oversampled to 1:1 (amended 2026-11-16). Sensor trainable at lr 1e-4 by default. For `augft_ucf` the detector is fine-tuned with UCF's native DeepfakeBench losses, not plain BCE. Max 30 epochs, early stopping on the val selection metric with patience 6. Checkpoint every epoch **and** every 2000 steps (mid-epoch resume uses a per-epoch permutation seeded by `seed + epoch`, so batches already seen can be skipped exactly).
 
 ---
 
