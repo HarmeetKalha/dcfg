@@ -25,11 +25,11 @@
 
 ## Out-of-order work while FF++ downloads (user-approved 2026-11-16)
 Code/prep that does not need FF++ data, pulled forward from later phases. Gates stay in order; items marked DEFERRED must be done when FF++ is ready.
-- [ ] A. Phase 3.1-3.3 prep: clone DeepfakeBench (pin commit in DECISIONS), data-engineer report on its preprocessing/JSON pipeline, dlib landmark model -> ~/data/weights/, prepare c23 (all splits) + c40 (test only) preprocessing configs/jobs (not queued).
-  - DEFERRED: 3.4 queue preprocessing, 3.5 counts + QA grid, GATE 3.
+- [x] A. (done: DFB f188b1c pinned; wrappers ops/jobs/dfb_{preprocess,rearrange}.{py,sh}, no DFB patch; 81-pt landmarks in ~/data/weights; official split jsons in ~/data/ffpp_frames/FaceForensics++/; dry run 2 videos OK 32/32 frames; ETA ~2-2.5 h at 6 workers; jobs dfb_pre_c23, dfb_pre_c40, dfb_rearrange QUEUED after downloads) Phase 3.1-3.3 prep: clone DeepfakeBench (pin commit in DECISIONS), data-engineer report on its preprocessing/JSON pipeline, dlib landmark model -> ~/data/weights/, prepare c23 (all splits) + c40 (test only) preprocessing configs/jobs (not queued).
+  - DEFERRED: 3.5 counts + QA grid, GATE 3.
 - [ ] B. Phase 4.1-4.3 code: DFB checkpoints -> ~/data/weights/dfb/, detectors/adapter.py (zero missing/unexpected keys asserted), eval/metrics.py + evaluate.py with unit tests on synthetic data.
   - DEFERRED: 4.4 clean c23 test reproduction, GATE 4.
-- [ ] C. Phase 5.1: data/degradations.py (7.2 sampler + 7.3 deterministic conditions incl. WebP, motion blur), configs/eval/conditions.yaml, tests.
+- [x] C. (done: 30 tests pass, 834 img/s; mixed op order blur->noise->jpeg; eval seed = sha256(name|key)) Phase 5.1: data/degradations.py (7.2 sampler + 7.3 deterministic conditions incl. WebP, motion blur), configs/eval/conditions.yaml, tests.
   - DEFERRED: 5.2 freq study, 5.3-5.4 baseline eval + curves, GATE 5.
 - [ ] D. Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
   - DEFERRED: 6.4 FF++ val embedding plot -> then GATE 6.

@@ -1,0 +1,43 @@
+# Evaluation conditions (PLAN 7.3). Ops are applied in listed order.
+# Mixed conditions use blur -> noise -> jpeg: this mimics a capture -> compress
+# pipeline (optical blur, sensor noise, then lossy encoding).
+# Per-image RNG seed = sha256(f"{name}|{image_key}"), see degradations.condition_rng.
+conditions:
+  - {name: clean, group: clean}
+
+  - {name: jpeg_q90, group: jpeg, ops: [{op: jpeg, param: 90}]}
+  - {name: jpeg_q70, group: jpeg, ops: [{op: jpeg, param: 70}]}
+  - {name: jpeg_q50, group: jpeg, ops: [{op: jpeg, param: 50}]}
+  - {name: jpeg_q30, group: jpeg, ops: [{op: jpeg, param: 30}]}
+  - {name: jpeg_q10, group: jpeg, ops: [{op: jpeg, param: 10}]}
+
+  - {name: blur_s1, group: blur, ops: [{op: blur, param: 1.0}]}
+  - {name: blur_s2, group: blur, ops: [{op: blur, param: 2.0}]}
+  - {name: blur_s3, group: blur, ops: [{op: blur, param: 3.0}]}
+  - {name: blur_s4, group: blur, ops: [{op: blur, param: 4.0}]}
+
+  - {name: noise_s5, group: noise, ops: [{op: noise, param: 5.0}]}
+  - {name: noise_s10, group: noise, ops: [{op: noise, param: 10.0}]}
+  - {name: noise_s15, group: noise, ops: [{op: noise, param: 15.0}]}
+  - {name: noise_s20, group: noise, ops: [{op: noise, param: 20.0}]}
+
+  - {name: resize_0.5, group: resize, ops: [{op: resize, param: 0.5}]}
+  - {name: resize_0.25, group: resize, ops: [{op: resize, param: 0.25}]}
+
+  - name: mixed_light
+    group: mixed
+    ops: [{op: blur, param: 1.0}, {op: noise, param: 5.0}, {op: jpeg, param: 70}]
+  - name: mixed_heavy
+    group: mixed
+    ops: [{op: blur, param: 2.0}, {op: noise, param: 10.0}, {op: jpeg, param: 30}]
+
+  - {name: webp_q50, group: held_out, held_out: true, ops: [{op: webp, param: 50}]}
+  - {name: webp_q20, group: held_out, held_out: true, ops: [{op: webp, param: 20}]}
+  - {name: motion_k7, group: held_out, held_out: true, ops: [{op: motion, param: 7}]}
+  - {name: motion_k11, group: held_out, held_out: true, ops: [{op: motion, param: 11}]}
+
+  # Real H.264 compression: no op applied, data come from the c40 frames.
+  - {name: c40, group: real_compression, synthetic: false}
+
+# Validation subset (early stopping only; selection = mean frame AUC).
+val_conditions: [clean, jpeg_q50, jpeg_q30, blur_s2, noise_s10, mixed_heavy]
