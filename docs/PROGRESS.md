@@ -19,13 +19,17 @@
 - GATE 1 review done: BLOCKER (.gitignore `data` ignored src/dcfg/data) fixed in 5514389. SHOULD-FIXes done, tests 21 passed (watchdog restart via schtasks, job process-group kill, pinger leak, pidfile liveness, heartbeat alert tags/cooldown, CRLF, hidden task window). See DECISIONS.md.
 - Task Scheduler tasks registered by user (DCFG-Runner Ready; watchdog PT30M, indefinite).
 - smoke_gpu_01 DONE via Task Scheduler runner; user confirmed ntfy + W&B. GATE 1 passed. Pushed to GitHub (private HarmeetKalha/dcfg); secret scan of history clean.
-- Phase 2: FF++ script present at ~/data/ffpp_raw/faceforensics_download_v4.py. `data-engineer` reviewing it, picking server, writing download jobs, fetching LIVE.
+- Phase 2: FF++ script present at ~/data/ffpp_raw/faceforensics_download_v4.py. Script reviewed: stock v4 downloader, safe. Server EU2 (EU refused, CA timeout). ops/jobs/ffpp_download.sh + 10 queue jobs (c23 then c40 x 5 types).
+- RUNNING: FF++ downloads started ~13:50 UTC 2026-11-16 (ffpp_dl_c23_original first). ETA rough: ~4-8 h total (~12-15 GB at ~0.7+ MB/s; speed unmeasured on bulk).
+- LIVE blocked on human step (Google form + Box download). Checker src/dcfg/data/live_check.py written, untested (.mat var names assumed).
 
 ## Blockers (user action needed)
 - (done) `.wslconfig` applied.
 - (done) gh authenticated; user confirmed ntfy test arrived on phone.
 
+## Blockers (user action needed)
+- LIVE: fill form http://goo.gl/forms/HfOwfnDpr6, download zip from https://utexas.box.com/v/ChallengeDB-release to C:\Users\ME\Downloads\.
+
 ## Next
-- Review data-engineer report; start runner (schtasks) for FF++ downloads; one status check; record ETA.
-- LIVE: verify 1169 .mat entries / 1162 images (may need user to download zip manually).
-- GATE 2 next session: 1000 videos per type per compression.
+- Copy LIVE zip from /mnt/c/Users/ME/Downloads to ~/data/live, unzip, flatten, run live_check.
+- When downloads finish: verify 1000 videos per type for c23 and c40, record sizes -> GATE 2.
