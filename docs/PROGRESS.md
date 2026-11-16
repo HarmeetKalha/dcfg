@@ -31,7 +31,7 @@ Code/prep that does not need FF++ data, pulled forward from later phases. Gates 
   - DEFERRED: 4.4 clean c23 test reproduction, GATE 4.
 - [x] C. (done: 30 tests pass, 834 img/s; mixed op order blur->noise->jpeg; eval seed = sha256(name|key)) Phase 5.1: data/degradations.py (7.2 sampler + 7.3 deterministic conditions incl. WebP, motion blur), configs/eval/conditions.yaml, tests.
   - DEFERRED: 5.2 freq study, 5.3-5.4 baseline eval + curves, GATE 5.
-- [~] D. (code done + reviewed, blocker (clobber) fixed, 94 tests pass; QUEUED: sensor_live after ffpp_dl_c23_original (~7 min), sensor_live_p10 at end of queue; results -> results/raw/sensor_live__*.json; then report SRCC/PLCC) Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
+- [~] D. (sensor_live DONE: test SRCC/PLCC center 0.515/0.559, 5-crop 0.576/0.608; best epoch 66/86, val SRCC 0.687; ~/data/weights/sensor_live.pt saved; protocol10 queued at end; 6.4 embedding plot DEFERRED -> GATE 6) (code done + reviewed, blocker (clobber) fixed, 94 tests pass; QUEUED: sensor_live after ffpp_dl_c23_original (~7 min), sensor_live_p10 at end of queue; results -> results/raw/sensor_live__*.json; then report SRCC/PLCC) Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
   - DEFERRED: 6.4 FF++ val embedding plot -> then GATE 6.
 - [x] E. (code done; GATE 7 review: 0 blockers, test fixes applied; per-part LayerNorm added per user decision; 2420 img/s; GATE 7 APPROVED by user 2026-11-16) Phase 7 complete: models/dct.py, gate.py, fixed.py, frontend.py + tests + reviewer -> GATE 7 (needs no FF++).
 - [x] F. (done: 115 tests pass; xception dcfg ~250 img/s bs32 synthetic, 3.95 GB; user decisions applied: sensor trainable + dcfg_frozensensor_xception ablation, full epochs (~184k frames = 5760 steps/epoch; xception ~12 min/epoch train-only, ~6 h/30 ep + val), augft_ucf native DFB loss ([reals|fakes] batches, label_spe 0-4; fp16 untested for UCF native, may need amp=false and bs16); 118 tests pass) Phase 8.1 code only: train/train_frontend.py + configs.
@@ -43,7 +43,7 @@ Order: A + C + E in parallel now, then B, D, F.
 
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.
-- On return: ops/status.sh once; report sensor SRCC/PLCC from results/raw/sensor_live__test.json.
+- On return: ops/status.sh once.
 - When downloads done: verify 1000 videos/type c23 + c40, sizes -> GATE 2.
 - After preprocessing: counts + QA grid -> GATE 3; then the DEFERRED items in the checklist above, in phase order.
 - GATE 8 ETA note: full epochs make each Xception run ~6 h+; UCF/EffNet-B4 slower. Measure in Phase 8.3.
