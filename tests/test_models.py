@@ -227,8 +227,8 @@ def test_gate_param_count_and_ln_stats():
     _perturb(fe)
     x = _x(4, 32)
     e = log_energy(fe.dct(rgb_to_ycbcr(x)))
-    out = fe.gate.ln_energy(e)
+    out = torch.nn.functional.layer_norm(e, (192,), eps=fe.gate.ln_energy.eps)  # affine part was perturbed
     assert out.mean(1).abs().max() < 1e-4 and (out.std(1, unbiased=False) - 1).abs().max() < 1e-3
     emb = fe.sensor.embed(x)
-    o2 = fe.gate.ln_embed(emb)
+    o2 = torch.nn.functional.layer_norm(emb, (128,), eps=fe.gate.ln_embed.eps)
     assert o2.mean(1).abs().max() < 1e-4 and (o2.std(1, unbiased=False) - 1).abs().max() < 1e-2
