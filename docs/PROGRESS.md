@@ -31,9 +31,9 @@ Code/prep that does not need FF++ data, pulled forward from later phases. Gates 
   - DEFERRED: 4.4 clean c23 test reproduction, GATE 4.
 - [x] C. (done: 30 tests pass, 834 img/s; mixed op order blur->noise->jpeg; eval seed = sha256(name|key)) Phase 5.1: data/degradations.py (7.2 sampler + 7.3 deterministic conditions incl. WebP, motion blur), configs/eval/conditions.yaml, tests.
   - DEFERRED: 5.2 freq study, 5.3-5.4 baseline eval + curves, GATE 5.
-- [ ] D. Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
+- [~] D. (code done, 1 epoch ~2 s; pre-launch review running; then queue sensor_live after current download, sensor_live_p10 at end) Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
   - DEFERRED: 6.4 FF++ val embedding plot -> then GATE 6.
-- [x] E. (code done: 49 tests pass, 2428 img/s; reviewer pending -> GATE 7) Phase 7 complete: models/dct.py, gate.py, fixed.py, frontend.py + tests + reviewer -> GATE 7 (needs no FF++).
+- [x] E. (code done; GATE 7 review: 0 blockers, test fixes applied; per-part LayerNorm added per user decision; 2420 img/s; awaiting user GATE 7 approval) Phase 7 complete: models/dct.py, gate.py, fixed.py, frontend.py + tests + reviewer -> GATE 7 (needs no FF++).
 - [ ] F. Phase 8.1 code only: train/train_frontend.py + configs.
   - DEFERRED: 8.2 smoke/resume tests, 8.3 timing/ETA, 8.4 config/queue generation, GATE 8.
 Order: A + C + E in parallel now, then B, D, F.
