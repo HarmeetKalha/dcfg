@@ -44,9 +44,13 @@ Order: A + C + E in parallel now, then B, D, F.
 ## Standing user instruction (2026-11-16)
 - Token saving: once the only remaining work needs FF++ downloads/preprocessing, do NOT write speculative scripts or extra code. End the turn and wait for the user's "continue" (ntfy "queue finished" / download DONE). No polling.
 
+- Gate-prep scripts done (126 tests pass): ops/jobs/verify_ffpp_downloads.py (GATE 2), analysis/preprocess_qa.py (GATE 3 counts + qa_crops.png), analysis/freq_study.py (5.2), analysis/sensor_embedding.py (6.4), analysis/overhead.py (T4 measured -> results/raw/overhead.json: dcfg front-end +0.46 ms/img at bs32, 394k params), ops/jobs/make_eval_queue.py (prints base_<det>, preprocess_qa, freq_study, sensor_embedding queue lines).
+- GATE 4 reference AUCs recorded in DECISIONS (DFB paper Table 3).
+- Idle until user says "continue" (no new work started).
+
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.
-- On return: ops/status.sh once.
+- On return: ops/status.sh once. When downloads DONE: `python ops/jobs/verify_ffpp_downloads.py` -> GATE 2. After dfb_rearrange: queue preprocess_qa, freq_study, sensor_embedding (lines from make_eval_queue.py) -> GATE 3/5.2/6.4; base_<det> evals after GATE 4 reproduction.
 - When downloads done: verify 1000 videos/type c23 + c40, sizes -> GATE 2.
 - After preprocessing: counts + QA grid -> GATE 3; then the DEFERRED items in the checklist above, in phase order.
 - GATE 8 ETA note: full epochs make each Xception run ~6 h+; UCF/EffNet-B4 slower. Measure in Phase 8.3.
