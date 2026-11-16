@@ -204,3 +204,31 @@ def test_throughput():
     ips = 64 * n / (time.time() - t)
     print(f"FrontEnd dcfg throughput: {ips:.0f} img/s")
     assert ips >= 2000
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_identity_at_init_with_layernorm(kind):
+    fe = FrontEnd(kind).eval()  # randomly initialised sensor, unperturbed gate
+    imgs = [_x(2, 32, seed=5), torch.full((2, 3, 32, 32), 0.5),
+            0.5 + 1e-6 * _x(2, 32, seed=6), torch.zeros(2, 3, 32, 32), torch.ones(2, 3, 32, 32)]
+    for x in imgs:
+        y, w = fe(x)
+        assert torch.isfinite(y).all()
+        assert (y - x).abs().max() < 1e-5
+        assert torch.equal(w, torch.ones_like(w))
+
+
+def test_gate_param_count_and_ln_stats():
+    from dcfg.models.gate import FrequencyGate, log_energy
+    n = lambda g: sum(p.numel() for p in g.parameters())
+    assert n(FrequencyGate(True)) == (320 * 256 + 256) + (256 * 192 + 192) + 2 * 128 + 2 * 192
+    assert n(FrequencyGate(False)) == (192 * 256 + 256) + (256 * 192 + 192) + 2 * 192
+    fe = FrontEnd("dcfg").eval()
+    _perturb(fe)
+    x = _x(4, 32)
+    e = log_energy(fe.dct(rgb_to_ycbcr(x)))
+    out = fe.gate.ln_energy(e)
+    assert out.mean(1).abs().max() < 1e-4 and (out.std(1, unbiased=False) - 1).abs().max() < 1e-3
+    emb = fe.sensor.embed(x)
+    o2 = fe.gate.ln_embed(emb)
+    assert o2.mean(1).abs().max() < 1e-4 and (o2.std(1, unbiased=False) - 1).abs().max() < 1e-2

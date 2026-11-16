@@ -16,7 +16,12 @@ def log_energy(coef: Tensor) -> Tensor:
 
 
 class FrequencyGate(nn.Module):
-    """MLP gate: [embedding(128)?, log-energy(192)] -> 256 -> GELU -> 192; w = 2*sigmoid(z).
+    """MLP gate: LN(embedding 128) and LN(log-energy 192) -> concat -> Linear 320->256 -> GELU
+    -> Linear 256->192 -> w = 2*sigmoid(z).
+
+    Each input has its own LayerNorm (affine, eps 1e-5) so the two differently scaled
+    inputs are standardised per sample before mixing. The nosensor variant uses only
+    LN(192) -> Linear 192->256.
 
     The last layer has zero weight AND bias, so w == 1 exactly at init.
     ``use_sensor=False`` drops the embedding input (gate_nosensor).
@@ -26,6 +31,8 @@ class FrequencyGate(nn.Module):
         super().__init__()
         self.use_sensor = use_sensor
         din = N_COEF + (embed_dim if use_sensor else 0)
+        self.ln_energy = nn.LayerNorm(N_COEF)
+        self.ln_embed = nn.LayerNorm(embed_dim) if use_sensor else None
         self.fc1 = nn.Linear(din, hidden)
         self.fc2 = nn.Linear(hidden, N_COEF)
         nn.init.zeros_(self.fc2.weight)
@@ -34,9 +41,9 @@ class FrequencyGate(nn.Module):
     def forward(self, energy: Tensor, embedding: Tensor | None = None) -> Tensor:
         """Return weights ``w`` of shape (B,3,8,8)."""
         with torch.autocast(device_type=energy.device.type, enabled=False):
-            h = energy.float()
+            h = self.ln_energy(energy.float())
             if self.use_sensor:
                 assert embedding is not None, "gate with use_sensor=True needs an embedding"
-                h = torch.cat([embedding.float(), h], dim=1)
+                h = torch.cat([self.ln_embed(embedding.float()), h], dim=1)
             z = self.fc2(nn.functional.gelu(self.fc1(h)))
             return (2 * torch.sigmoid(z)).view(-1, 3, 8, 8)

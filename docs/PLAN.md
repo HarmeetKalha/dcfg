@@ -343,7 +343,7 @@ Each phase lists tasks, who does them, the acceptance criteria, and the GATE. At
 
 ### Phase 7 — DCT, gate, and front-end module (~2–3 h)
 1. `models/dct.py`: RGB↔YCbCr (JPEG/BT.601 full range); 8×8 blockwise orthonormal DCT-II and its inverse via a fixed 8×8 basis matrix (`C X Cᵀ`), batched and differentiable, fp32. Requires H, W divisible by 8 (256 is).
-2. `models/gate.py`: input = concat(sensor embedding 128, per-image log mean |coefficient| energy per (channel, position) 192) → Linear 320→256 → GELU → Linear 256→192 (zero-init) → `w = 2·sigmoid(·)`.
+2. `models/gate.py`: input = concat(LayerNorm₁₂₈(sensor embedding 128), LayerNorm₁₉₂(per-image log mean |coefficient| energy per (channel, position) 192)), each part normalized by its own LayerNorm (learnable affine) → Linear 320→256 → GELU → Linear 256→192 (zero-init) → `w = 2·sigmoid(·)`. The nosensor variant uses LayerNorm₁₉₂ only → Linear 192→256. (Amended 2026-11-16, see DECISIONS.)
 3. `models/fixed.py`: 192 learnable logits, same parameterization, identical for every image.
 4. `models/frontend.py`: `FrontEnd(sensor, gate)` and variants (`fixed`, `nosensor`). forward(x01) → ycbcr → dct → multiply each 8×8 block's coefficients by w[channel, position] → idct → rgb → clamp [0,1]. Returns image and w (for logging/visualization).
 5. Tests: DCT round-trip max error < 1e-5; at init the front-end output equals its input (max error < 1e-5); gradients reach the gate and sensor; no hardcoded band groupings anywhere (reviewer checks); throughput ≥ 2000 img/s at 256 on the 3060.
