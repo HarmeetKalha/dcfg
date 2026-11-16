@@ -20,7 +20,7 @@
 - Task Scheduler tasks registered by user (DCFG-Runner Ready; watchdog PT30M, indefinite).
 - smoke_gpu_01 DONE via Task Scheduler runner; user confirmed ntfy + W&B. GATE 1 passed. Pushed to GitHub (private HarmeetKalha/dcfg); secret scan of history clean.
 - Phase 2: FF++ script present at ~/data/ffpp_raw/faceforensics_download_v4.py. Script reviewed: stock v4 downloader, safe. Server EU2 (EU refused, CA timeout). ops/jobs/ffpp_download.sh + 10 queue jobs (c23 then c40 x 5 types).
-- RUNNING: FF++ downloads started 13:44 UTC 2026-11-16. Measured ~26 videos/min (104 in 4 min) -> ETA ~6 h for all 10,000 videos, i.e. ~20:00 UTC (c40 smaller, likely faster).
+- RUNNING: FF++ downloads started 13:44 UTC 2026-11-16. Rate settled at ~2.6 s/video (516/1000 c23 original at 14:04 UTC) -> ~43 min per type, ETA all 10 downloads ~21:00 UTC, then preprocessing ~2-2.5 h.
 - LIVE VERIFIED: zip from user's Downloads -> ~/data/live/ChallengeDB_release/{Data,Images} (extracted excluding __MACOSX/.DS_Store; 413 MB). live_check: 1169 .mat entries (images + MOS), calibration t1-t7.bmp in Images/trainingImages, 1162 non-calibration images all open. Zip kept at ~/data/live/ChallengeDB_release.zip.
 
 ## Out-of-order work while FF++ downloads (user-approved 2026-11-16)
@@ -31,7 +31,7 @@ Code/prep that does not need FF++ data, pulled forward from later phases. Gates 
   - DEFERRED: 4.4 clean c23 test reproduction, GATE 4.
 - [x] C. (done: 30 tests pass, 834 img/s; mixed op order blur->noise->jpeg; eval seed = sha256(name|key)) Phase 5.1: data/degradations.py (7.2 sampler + 7.3 deterministic conditions incl. WebP, motion blur), configs/eval/conditions.yaml, tests.
   - DEFERRED: 5.2 freq study, 5.3-5.4 baseline eval + curves, GATE 5.
-- [~] D. (code done, 1 epoch ~2 s; pre-launch review running; then queue sensor_live after current download, sensor_live_p10 at end) Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
+- [~] D. (code done + reviewed, blocker (clobber) fixed, 94 tests pass; QUEUED: sensor_live after ffpp_dl_c23_original (~7 min), sensor_live_p10 at end of queue; results -> results/raw/sensor_live__*.json; then report SRCC/PLCC) Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
   - DEFERRED: 6.4 FF++ val embedding plot -> then GATE 6.
 - [x] E. (code done; GATE 7 review: 0 blockers, test fixes applied; per-part LayerNorm added per user decision; 2420 img/s; awaiting user GATE 7 approval) Phase 7 complete: models/dct.py, gate.py, fixed.py, frontend.py + tests + reviewer -> GATE 7 (needs no FF++).
 - [ ] F. Phase 8.1 code only: train/train_frontend.py + configs.

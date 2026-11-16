@@ -11,6 +11,7 @@
 #  - New lines may be appended while the runner is active.
 smoke_gpu_01 | python ops/smoke_gpu.py --seconds 180
 ffpp_dl_c23_original | bash ops/jobs/ffpp_download.sh original c23 #noheartbeat
+sensor_live | bash ops/jobs/train_sensor.sh #hb=30
 ffpp_dl_c23_Deepfakes | bash ops/jobs/ffpp_download.sh Deepfakes c23 #noheartbeat
 ffpp_dl_c23_Face2Face | bash ops/jobs/ffpp_download.sh Face2Face c23 #noheartbeat
 ffpp_dl_c23_FaceSwap | bash ops/jobs/ffpp_download.sh FaceSwap c23 #noheartbeat
@@ -23,3 +24,4 @@ ffpp_dl_c40_NeuralTextures | bash ops/jobs/ffpp_download.sh NeuralTextures c40 #
 dfb_pre_c23 | bash ops/jobs/dfb_preprocess.sh c23 6 #noheartbeat
 dfb_pre_c40 | bash ops/jobs/dfb_preprocess.sh c40 6 #noheartbeat
 dfb_rearrange | bash ops/jobs/dfb_rearrange.sh #noheartbeat
+sensor_live_p10 | bash ops/jobs/train_sensor.sh --protocol10 #hb=30
