@@ -14,13 +14,16 @@
 
 - WSL restarted: 11 GiB visible, custom agents loaded.
 - dlib 20.0.1 built from source (CPU-only; fine for landmark preprocessing).
-- (in progress) `implementer` building ops scripts + paths/heartbeat/seed utils + tests.
+- Ops scripts built (ops/{run_queue,watchdog,notify,status}.sh, queue.txt, register_tasks.ps1, smoke_gpu.py), src/dcfg/{paths,utils/heartbeat,utils/seed}.py, pyproject.toml (editable install), tests: 11 passed. shellcheck not installed (bash -n only).
+- requirements.lock frozen (98 pkgs). First commit c850f36 (not pushed).
+- Smoke job `smoke_gpu_01` queued in ops/queue.txt (not started).
 
 ## Blockers (user action needed)
 - (done) `.wslconfig` applied.
 - (done) gh authenticated; user confirmed ntfy test arrived on phone.
 
 ## Next
-- Freeze `requirements.lock` (after implementer finishes `pip install -e .`).
-- `implementer`: ops scripts (Section 5) + `register_tasks.ps1` + paths/heartbeat utils + tests. Runner smoke test.
-- GATE 1.
+- USER: register Task Scheduler tasks from Windows PowerShell (auto mode blocked Claude):
+  `powershell -ExecutionPolicy Bypass -File \\wsl$\Ubuntu-24.04\home\harmeet\dcfg\ops\register_tasks.ps1`
+- Then: `schtasks.exe /run /tn DCFG-Runner`, one ops/status.sh check; user confirms ntfy start/done + W&B smoke run.
+- Reviewer pass -> GATE 1.
