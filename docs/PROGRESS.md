@@ -23,6 +23,21 @@
 - RUNNING: FF++ downloads started 13:44 UTC 2026-11-16. Measured ~26 videos/min (104 in 4 min) -> ETA ~6 h for all 10,000 videos, i.e. ~20:00 UTC (c40 smaller, likely faster).
 - LIVE VERIFIED: zip from user's Downloads -> ~/data/live/ChallengeDB_release/{Data,Images} (extracted excluding __MACOSX/.DS_Store; 413 MB). live_check: 1169 .mat entries (images + MOS), calibration t1-t7.bmp in Images/trainingImages, 1162 non-calibration images all open. Zip kept at ~/data/live/ChallengeDB_release.zip.
 
+## Out-of-order work while FF++ downloads (user-approved 2026-11-16)
+Code/prep that does not need FF++ data, pulled forward from later phases. Gates stay in order; items marked DEFERRED must be done when FF++ is ready.
+- [ ] A. Phase 3.1-3.3 prep: clone DeepfakeBench (pin commit in DECISIONS), data-engineer report on its preprocessing/JSON pipeline, dlib landmark model -> ~/data/weights/, prepare c23 (all splits) + c40 (test only) preprocessing configs/jobs (not queued).
+  - DEFERRED: 3.4 queue preprocessing, 3.5 counts + QA grid, GATE 3.
+- [ ] B. Phase 4.1-4.3 code: DFB checkpoints -> ~/data/weights/dfb/, detectors/adapter.py (zero missing/unexpected keys asserted), eval/metrics.py + evaluate.py with unit tests on synthetic data.
+  - DEFERRED: 4.4 clean c23 test reproduction, GATE 4.
+- [ ] C. Phase 5.1: data/degradations.py (7.2 sampler + 7.3 deterministic conditions incl. WebP, motion blur), configs/eval/conditions.yaml, tests.
+  - DEFERRED: 5.2 freq study, 5.3-5.4 baseline eval + curves, GATE 5.
+- [ ] D. Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
+  - DEFERRED: 6.4 FF++ val embedding plot -> then GATE 6.
+- [ ] E. Phase 7 complete: models/dct.py, gate.py, fixed.py, frontend.py + tests + reviewer -> GATE 7 (needs no FF++).
+- [ ] F. Phase 8.1 code only: train/train_frontend.py + configs.
+  - DEFERRED: 8.2 smoke/resume tests, 8.3 timing/ETA, 8.4 config/queue generation, GATE 8.
+Order: A + C + E in parallel now, then B, D, F.
+
 ## Blockers (user action needed)
 - none
 
