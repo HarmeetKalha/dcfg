@@ -16,6 +16,8 @@ Design notes
   Fine-tuned detectors run in train mode (BN uses batch statistics), as DeepfakeBench's trainer does
   (``model.train()``); validation always uses eval mode.
 * Sensor: trainable at ``lr_sensor`` unless ``freeze_sensor: true`` (PLAN 7.5 lists its lr).
+* UCF (augft_ucf only): trained with UCF's own DFB loss ``get_losses(...)['overall']`` on [real | fake]
+  paired batches with label_spe from the FF++ manipulation type; other detectors use BCE.
 * Sampling: class-balanced 1:1 per epoch from a permutation seeded by ``seed + epoch``; fakes pooled
   over the 4 manipulation types. Degradations (PLAN 7.2) are applied in the DataLoader workers to the
   uint8 crop with ``make_rng(seed, epoch, position_in_epoch)`` (no curriculum).
@@ -58,6 +60,8 @@ from dcfg.utils.seed import seed_everything
 
 VARIANTS = ("dcfg", "fixed", "nosensor", "dcfg_nolive", "augft", "dcfg_jointft")
 TRAIN_DETECTOR = ("augft", "dcfg_jointft")
+#: UCF's own specific-forgery labels (DFB ucf.yaml label_dict): real 0, DF 1, F2F 2, FS 3, NT 4.
+SPE_LABEL = {"FF-real": 0, "FF-DF": 1, "FF-F2F": 2, "FF-FS": 3, "FF-NT": 4}
 GATE_KIND = {"dcfg": "dcfg", "dcfg_nolive": "dcfg", "dcfg_jointft": "dcfg", "fixed": "fixed",
              "nosensor": "nosensor", "augft": None}
 
@@ -112,10 +116,29 @@ def build_frontend(cfg: dict[str, Any]) -> FrontEnd | None:
 class Pipeline(nn.Module):
     """x01 -> [front-end] -> detector.normalize -> detector -> logit. Returns ``(logit (B,), w or None)``."""
 
-    def __init__(self, frontend: FrontEnd | None, detector: nn.Module, amp: bool, train_detector: bool) -> None:
+    def __init__(self, frontend: FrontEnd | None, detector: nn.Module, amp: bool, train_detector: bool,
+                 native_ucf: bool = False) -> None:
         super().__init__()
         self.frontend, self.detector = frontend, detector
-        self.amp, self.train_detector = amp, train_detector
+        self.amp, self.train_detector, self.native_ucf = amp, train_detector, native_ucf
+
+    def native_ucf_loss(self, x01: Tensor, label: Tensor, label_spe: Tensor) -> Tensor:
+        """UCF's own DeepfakeBench training loss (``get_losses(...)['overall']``).
+
+        Needs the batch laid out as DFB's pair dataset does: first half real, second half fake
+        (``chunk(2)`` inside the loss); label is binary, label_spe in {0..4}. No masks/landmarks are
+        used (ucf.yaml with_mask/with_landmark false)."""
+        assert self.native_ucf and self.train_detector
+        if self.frontend is not None:
+            x01, _ = self.frontend(x01)
+        z = self.detector._prep(self.detector.normalize(x01))  # normalization applied once
+        h = len(label) // 2
+        assert len(label) % 2 == 0 and not label[:h].any() and label[h:].all(), "UCF needs [real | fake] batches"
+        data = {"image": z, "label": label.long(), "label_spe": label_spe.long(), "mask": None, "landmark": None}
+        with torch.autocast("cuda", dtype=torch.float16, enabled=self.amp and z.is_cuda):
+            pred = self.detector.model(data, inference=False)
+            losses = self.detector.model.get_losses(data, pred)
+        return losses["overall"].float()
 
     def forward(self, x01: Tensor) -> tuple[Tensor, Tensor | None]:
         w = None
@@ -159,11 +182,15 @@ def load_frontend(path: str | os.PathLike[str], device: str | torch.device = "cp
 
 
 # ----------------------------------------------------------------------------- data
-def epoch_order(labels: np.ndarray, seed: int, epoch: int, mode: str = "balanced") -> np.ndarray:
+def epoch_order(labels: np.ndarray, seed: int, epoch: int, mode: str = "balanced",
+                paired_half: int | None = None) -> np.ndarray:
     """Frame indices for one epoch, class-balanced 1:1, shuffled; deterministic in ``seed + epoch``.
 
     ``balanced``: all reals + as many fakes (fresh permutation per epoch, pooled over manipulations).
-    ``full``: all fakes + reals re-cycled to match."""
+    ``full``: all fakes + reals re-cycled to match (each real used floor/ceil(n_fake/n_real) times,
+    from fresh permutations, so repeats are spread over the epoch).
+    ``paired_half=h`` (UCF native loss): every consecutive batch of 2h frames is [h reals | h fakes]
+    (as DFB's pair dataset), batch order shuffled."""
     rng = np.random.default_rng(seed + epoch)
     real, fake = np.flatnonzero(labels == 0), np.flatnonzero(labels == 1)
     if len(real) == 0 or len(fake) == 0:
@@ -178,7 +205,12 @@ def epoch_order(labels: np.ndarray, seed: int, epoch: int, mode: str = "balanced
 
     if mode not in ("balanced", "full"):
         raise ValueError(f"epoch_mode {mode!r}")
-    return rng.permutation(np.concatenate([take(real), take(fake)]))
+    r, f = take(real), take(fake)
+    if paired_half:
+        h, nb = paired_half, m // paired_half
+        bs = [np.concatenate([r[i * h:(i + 1) * h], f[i * h:(i + 1) * h]]) for i in range(nb)]
+        return np.concatenate([bs[i] for i in rng.permutation(nb)])
+    return rng.permutation(np.concatenate([r, f]))
 
 
 class TrainDataset(Dataset):
@@ -192,13 +224,13 @@ class TrainDataset(Dataset):
     def __len__(self) -> int:
         return len(self.order) - self.offset
 
-    def __getitem__(self, j: int) -> tuple[Tensor, Tensor, int]:
+    def __getitem__(self, j: int) -> tuple[Tensor, Tensor, int, int]:
         pos = self.offset + j
         ridx = int(self.order[pos])
         rec = self.records[ridx]
         img, _ = self.deg(self.source.load(rec), make_rng(self.seed, self.epoch, pos))
         return (torch.from_numpy(np.ascontiguousarray(img)).permute(2, 0, 1),
-                torch.tensor(float(rec.label)), ridx)
+                torch.tensor(float(rec.label)), ridx, SPE_LABEL[rec.video.split("/")[0]])
 
 
 def batch_hash(ridx: Tensor) -> str:
@@ -265,7 +297,12 @@ class Trainer:
         self.records = self.source.records("train", cfg["comp"])
         self.labels = np.array([r.label for r in self.records])
         self.bs = int(cfg["batch_size"])
-        self.spe = len(epoch_order(self.labels, 0, 0, cfg["epoch_mode"])) // self.bs
+        # UCF fine-tuning uses UCF's own DFB losses (variant augft only): [real | fake] paired batches
+        self.native_ucf = self.variant == "augft" and cfg["detector"] == "ucf"
+        self.paired_half = self.bs // 2 if self.native_ucf else None
+        if self.native_ucf and self.bs % 2:
+            raise ValueError("native UCF loss needs an even batch size")
+        self.spe = len(epoch_order(self.labels, 0, 0, cfg["epoch_mode"], self.paired_half)) // self.bs
         if self.spe < 1:
             raise ValueError("fewer frames than one batch")
 
@@ -277,7 +314,7 @@ class Trainer:
         self.frontend = build_frontend(cfg)
         if self.frontend is not None:
             self.frontend.to(self.dev)
-        self.model = Pipeline(self.frontend, det, bool(cfg["amp"]), self.train_det).to(self.dev)
+        self.model = Pipeline(self.frontend, det, bool(cfg["amp"]), self.train_det, self.native_ucf).to(self.dev)
         self.det = det
         self.opt = self._make_optimizer()
         self.sched = torch.optim.lr_scheduler.LambdaLR(
@@ -445,20 +482,24 @@ class Trainer:
     def _train_epoch(self, epoch: int) -> bool:
         """Run the remainder of ``epoch``. Returns False if ``max_steps`` was hit."""
         cfg, st = self.cfg, self.st
-        order = epoch_order(self.labels, int(cfg["seed"]), epoch, cfg["epoch_mode"])[: self.spe * self.bs]
+        order = epoch_order(self.labels, int(cfg["seed"]), epoch, cfg["epoch_mode"],
+                           self.paired_half)[: self.spe * self.bs]
         loader = self._loader(epoch, order, st["step_in_epoch"])
         self.model.train()
         loss_fn = nn.BCEWithLogitsLoss()
         log_every, accl, acc_n, acc_img, t_log = int(cfg["log_every"]), None, 0, 0, time.time()
         stats = torch.zeros(4, device=self.dev)  # nonfinite(sensor, gate), zero(sensor, gate) counts
         gn = torch.zeros(2, device=self.dev)
-        for xb, yb, ridx in loader:
+        for xb, yb, ridx, spe_l in loader:
             b = st["step_in_epoch"]
             self._log_line("batches.log", f"{epoch} {b} {st['step']} {batch_hash(ridx)}")
             x = xb.to(self.dev, non_blocking=True).float().div_(255.0)
             y = yb.to(self.dev, non_blocking=True)
-            logit, _ = self.model(x)
-            loss = loss_fn(logit, y)
+            if self.native_ucf:
+                loss = self.model.native_ucf_loss(x, y, spe_l.to(self.dev))
+            else:
+                logit, _ = self.model(x)
+                loss = loss_fn(logit, y)
             self.opt.zero_grad(set_to_none=True)
             self.scaler.scale(loss).backward()
             self.scaler.unscale_(self.opt)

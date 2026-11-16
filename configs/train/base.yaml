@@ -8,9 +8,8 @@ seed: 42
 json: null              # null -> ~/data/dfb_json/FaceForensics++.json
 frames_root: null       # null -> ~/data/ffpp_frames
 comp: c23
-epoch_mode: balanced    # balanced: epoch = 2*n_real frames (all reals + equally many fresh-permuted fakes);
-                        # full: epoch = all fakes, reals re-cycled to 1:1 (4x longer epochs)
-batch_size: 32
+epoch_mode: full        # full: every fake frame each epoch, reals oversampled to 1:1 (floor/ceil repeats, spread by the seed+epoch permutation);
+                        # balanced: epoch = 2*n_real frames (all reals + equally many fresh-permuted fakes)
 num_workers: 6
 val_workers: 4
 # optimisation (PLAN 7.5)
