@@ -17,14 +17,14 @@
 - Ops scripts built (ops/{run_queue,watchdog,notify,status}.sh, queue.txt, register_tasks.ps1, smoke_gpu.py), src/dcfg/{paths,utils/heartbeat,utils/seed}.py, pyproject.toml (editable install), tests: 11 passed. shellcheck not installed (bash -n only).
 - requirements.lock frozen (98 pkgs). First commit c850f36 (not pushed).
 - GATE 1 review done: BLOCKER (.gitignore `data` ignored src/dcfg/data) fixed in 5514389. SHOULD-FIXes done, tests 21 passed (watchdog restart via schtasks, job process-group kill, pinger leak, pidfile liveness, heartbeat alert tags/cooldown, CRLF, hidden task window). See DECISIONS.md.
-- Smoke job `smoke_gpu_01` queued in ops/queue.txt (not started).
+- Task Scheduler tasks registered by user (DCFG-Runner Ready; watchdog PT30M, indefinite).
+- RUNNING: smoke_gpu_01 started 13:37 UTC via schtasks (runner alive, W&B run 8isowoiq syncing). ETA ~13:41 UTC.
 
 ## Blockers (user action needed)
 - (done) `.wslconfig` applied.
 - (done) gh authenticated; user confirmed ntfy test arrived on phone.
 
 ## Next
-- USER: (re-)run register_tasks.ps1 AFTER implementer's fixes land (it changes the task actions). Register Task Scheduler tasks from Windows PowerShell (auto mode blocked Claude):
-  `powershell -ExecutionPolicy Bypass -File \\wsl$\Ubuntu-24.04\home\harmeet\dcfg\ops\register_tasks.ps1`
-- Then: `schtasks.exe /run /tn DCFG-Runner`, one ops/status.sh check; user confirms ntfy start/done + W&B smoke run.
-- Reviewer pass -> GATE 1.
+- User confirms: ntfy 'start' + 'done' + 'queue finished' on phone; W&B run smoke_gpu_01 visible. Then one ops/status.sh check (expect done=1).
+- GATE 1 summary -> wait for user "continue" -> Phase 2 (data acquisition).
+- Optional: push to GitHub (ask first).
