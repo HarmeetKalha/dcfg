@@ -4,24 +4,18 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(dirname "$HERE")"
 RUNS="${DCFG_RUNS_ROOT:-$REPO/runs}"
 QUEUE="${DCFG_QUEUE_FILE:-$REPO/ops/queue.txt}"
-total=0; done_n=0; fail_n=0
-if [ -f "$QUEUE" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    line="${line#"${line%%[![:space:]]*}"}"
-    [ -z "$line" ] && continue
-    [ "${line:0:1}" = "#" ] && continue
-    [[ "$line" == *"|"* ]] || continue
-    id="${line%%|*}"; id="${id%"${id##*[![:space:]]}"}"
-    [[ "$id" =~ ^[A-Za-z0-9_.-]+$ ]] || continue
-    total=$((total+1))
-    if [ -e "$RUNS/$id/DONE" ]; then done_n=$((done_n+1))
-    elif [ -e "$RUNS/$id/FAILED" ]; then fail_n=$((fail_n+1)); fi
-  done < "$QUEUE"
-fi
+# shellcheck source=_queue_lib.sh
+source "$HERE/_queue_lib.sh"
+total=0; done_n=0; fail_n=0; failed_ids=()
+while IFS=$'\t' read -r id nohb hb cmd; do
+  total=$((total+1))
+  if [ -e "$RUNS/$id/DONE" ]; then done_n=$((done_n+1))
+  elif [ -e "$RUNS/$id/FAILED" ]; then fail_n=$((fail_n+1)); failed_ids+=("$id"); fi
+done < <(queue_jobs "$QUEUE")
 echo "queue: done=$done_n failed=$fail_n pending=$((total-done_n-fail_n)) total=$total"
+[ "$fail_n" -gt 0 ] && echo "failed jobs: ${failed_ids[*]:0:5}$([ "$fail_n" -gt 5 ] && echo ' ...')"
 
-if [ -e "$RUNS/.runner.lock" ] && ! ( flock -n 8 ) 8<"$RUNS/.runner.lock" 2>/dev/null; then
-  alive=yes; else alive=no; fi
+if runner_alive "$RUNS"; then alive=yes; else alive=no; fi
 echo "runner alive: $alive"
 
 job=""; [ -s "$RUNS/_current_job" ] && job="$(cat "$RUNS/_current_job")"

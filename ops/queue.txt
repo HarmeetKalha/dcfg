@@ -1,7 +1,11 @@
-# DCFG job queue. One job per line:   <job_id> | <shell command>
+# DCFG job queue. One job per line:   <job_id> | <shell command> [#noheartbeat] [#hb=<minutes>]
 #  - job_id matches [A-Za-z0-9_.-]+ ; it names runs/<job_id>/.
-#  - Lines starting with '#' and blank lines are ignored.
-#  - A job is skipped if runs/<job_id>/DONE or runs/<job_id>/FAILED exists.
+#  - Lines starting with '#' and blank lines are ignored. CRLF line endings are tolerated.
+#  - A job is skipped if runs/<job_id>/DONE or runs/<job_id>/FAILED exists. To re-run a
+#    DONE or FAILED job, delete that marker file (rm runs/<job_id>/DONE or FAILED).
+#  - Trailing tags (stripped before the command runs):
+#      #noheartbeat  the watchdog never alerts about this job's heartbeat (jobs that write none)
+#      #hb=<minutes> heartbeat-staleness alert threshold for this job (default 20)
 #  - Commands run via `bash -lc` from the repo root with DCFG_JOB_ID and DCFG_RUN_DIR set;
 #    they must auto-resume from their own checkpoints (retried up to 3 times).
 #  - New lines may be appended while the runner is active.
