@@ -10,3 +10,13 @@
 #    they must auto-resume from their own checkpoints (retried up to 3 times).
 #  - New lines may be appended while the runner is active.
 smoke_gpu_01 | python ops/smoke_gpu.py --seconds 180
+ffpp_dl_c23_original | bash ops/jobs/ffpp_download.sh original c23 #noheartbeat
+ffpp_dl_c23_Deepfakes | bash ops/jobs/ffpp_download.sh Deepfakes c23 #noheartbeat
+ffpp_dl_c23_Face2Face | bash ops/jobs/ffpp_download.sh Face2Face c23 #noheartbeat
+ffpp_dl_c23_FaceSwap | bash ops/jobs/ffpp_download.sh FaceSwap c23 #noheartbeat
+ffpp_dl_c23_NeuralTextures | bash ops/jobs/ffpp_download.sh NeuralTextures c23 #noheartbeat
+ffpp_dl_c40_original | bash ops/jobs/ffpp_download.sh original c40 #noheartbeat
+ffpp_dl_c40_Deepfakes | bash ops/jobs/ffpp_download.sh Deepfakes c40 #noheartbeat
+ffpp_dl_c40_Face2Face | bash ops/jobs/ffpp_download.sh Face2Face c40 #noheartbeat
+ffpp_dl_c40_FaceSwap | bash ops/jobs/ffpp_download.sh FaceSwap c40 #noheartbeat
+ffpp_dl_c40_NeuralTextures | bash ops/jobs/ffpp_download.sh NeuralTextures c40 #noheartbeat
