@@ -1,0 +1,4 @@
+base: base.yaml
+run_id: dcfg_xception
+variant: dcfg
+detector: xception

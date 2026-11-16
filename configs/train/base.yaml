@@ -1,0 +1,37 @@
+# Base training config (PLAN 7.2, 7.4, 7.5). Variant configs set `base: base.yaml` and override.
+run_id: null            # required in the variant config, e.g. dcfg_xception
+variant: dcfg           # dcfg | fixed | nosensor | dcfg_nolive | augft | dcfg_jointft
+detector: xception      # xception | effnb4 | f3net | ucf  (registry names)
+detector_weights: null  # null -> DFB default weights
+seed: 42
+# data (FF++ c23, official split from the DFB json; train/val only, test is never touched here)
+json: null              # null -> ~/data/dfb_json/FaceForensics++.json
+frames_root: null       # null -> ~/data/ffpp_frames
+comp: c23
+epoch_mode: balanced    # balanced: epoch = 2*n_real frames (all reals + equally many fresh-permuted fakes);
+                        # full: epoch = all fakes, reals re-cycled to 1:1 (4x longer epochs)
+batch_size: 32
+num_workers: 6
+val_workers: 4
+# optimisation (PLAN 7.5)
+lr_gate: 1.0e-3
+lr_sensor: 1.0e-4
+lr_detector: 2.0e-5
+weight_decay: 1.0e-4
+warmup_epochs: 1
+max_epochs: 30
+patience: 6
+amp: true               # fp16 autocast for the detector forward; module stays fp32
+# sensor
+sensor_weights: ~/data/weights/sensor_live.pt   # backbone weights (dcfg, dcfg_jointft)
+freeze_sensor: false    # false: sensor trains at lr_sensor (PLAN 7.5); true: frozen, eval mode
+sensor_amp: true
+# checkpoints / logging
+ckpt_every_steps: 2000
+frozen_check_every: 100
+log_every: 50
+heartbeat_s: 60
+wandb_project: dcfg
+run_dir: null           # null -> $DCFG_RUN_DIR or runs/<run_id>
+conditions_yaml: configs/eval/conditions.yaml
+max_steps: null         # timing / smoke only: stop after N steps (no val, not for real runs)

@@ -8,6 +8,9 @@
 * Resumable: a condition whose JSON exists is skipped unless ``--force``.
 * The ``val`` split is never written to ``results/raw`` (Test numbers for the paper come only
   from there); ``--split val`` requires an explicit ``--out-dir`` elsewhere.
+* ``--frontend frontend.pt`` (from ``dcfg.train.train_frontend``) puts the trained module before the
+  frozen detector; ``--detector-ckpt detector.pt`` loads fine-tuned detector weights (augft/jointft).
+  ``--out-dir`` is the results-dir override (tests use a tmp dir).
 * Scores are P(fake) = sigmoid(adapter logit) (see ``dcfg.detectors.adapter``), fp32 by default.
 """
 from __future__ import annotations
@@ -163,7 +166,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m dcfg.eval.evaluate", description=__doc__.split("\n")[0])
     ap.add_argument("--run", required=True, help="run id, e.g. base_xception")
     ap.add_argument("--detector", required=True)
-    ap.add_argument("--frontend", default=None, help="front-end checkpoint (not wired up yet)")
+    ap.add_argument("--frontend", default=None, help="trained front-end (frontend.pt from train_frontend)")
+    ap.add_argument("--detector-ckpt", default=None,
+                    help="fine-tuned detector weights (detector.pt from augft/jointft); same as --weights")
+    ap.add_argument("--runs-dir", default=None, help="where the heartbeat goes (default runs/)")
     ap.add_argument("--conditions", default="all", help="comma list or 'all'")
     ap.add_argument("--split", default="test", choices=["test", "val"])
     ap.add_argument("--out-dir", default=None, help="default results/raw (test only)")
@@ -181,8 +187,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--split val requires --out-dir (val results never go to results/raw)")
     out_dir = Path(a.out_dir) if a.out_dir else RAW_DIR
     check_out_dir(a.split, out_dir)
-    if a.frontend:
-        raise SystemExit("--frontend is not wired up yet (front-end modules are being built)")
 
     from dcfg.detectors.adapter import Detector
     from dcfg.detectors.registry import dfb_commit
@@ -193,12 +197,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not todo:
         return 0
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    det = Detector(a.detector, weights_path=a.weights, device=device).freeze()
+    det = Detector(a.detector, weights_path=a.detector_ckpt or a.weights, device=device).freeze()
+    front = None
+    extra: dict[str, Any] = {}
+    if a.frontend:
+        from dcfg.train.train_frontend import load_frontend
+        front, meta = load_frontend(a.frontend, device)
+        extra = {"frontend": str(a.frontend), "variant": meta.get("variant"),
+                 "detector_ckpt": a.detector_ckpt or a.weights}
+    elif a.detector_ckpt:
+        extra = {"detector_ckpt": a.detector_ckpt}
     source = DFBJsonSource(a.json, a.frames_root)
-    hb = Heartbeat(RUNS_ROOT / a.run)
+    hb = Heartbeat((Path(a.runs_dir) if a.runs_dir else RUNS_ROOT) / a.run)
     commit = dfb_commit()
 
     def model(x01: torch.Tensor) -> torch.Tensor:
+        """Front-end (if any) -> detector.normalize (applied once, after the front-end) -> logit."""
+        if front is not None:
+            x01 = front(x01)[0]
         return det(det.normalize(x01))
 
     for cond in todo:
@@ -206,7 +222,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         p = evaluate_condition(run_id=a.run, detector=a.detector, cond=cond, split=a.split, source=source,
                                model=model, out_dir=out_dir, device=device, batch_size=a.batch_size,
                                workers=a.workers, fp16=a.fp16, n_boot=a.n_boot, force=a.force,
-                               heartbeat=hb, dfb_commit_hash=commit)
+                               heartbeat=hb, dfb_commit_hash=commit, extra=extra)
         print(f"  {cond.name}: {p} ({time.time() - t0:.0f}s)", flush=True)
         hb.beat(0, force=True, condition=cond.name, done=True)
     return 0
