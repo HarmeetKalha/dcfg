@@ -1,0 +1,85 @@
+"""Pluggable front-end: RGB -> YCbCr -> block DCT -> per-coefficient weights -> IDCT -> RGB."""
+from __future__ import annotations
+
+import torch
+from torch import Tensor, nn
+
+from .dct import BlockDCT, rgb_to_ycbcr, ycbcr_to_rgb
+from .fixed import FixedGate
+from .gate import FrequencyGate, log_energy
+from .sensor import DegradationSensor
+
+GATE_KINDS = ("dcfg", "fixed", "nosensor")
+
+
+class FrontEnd(nn.Module):
+    """Frequency front-end placed before a frozen detector.
+
+    ``gate_kind``: ``dcfg`` (sensor embedding + DCT energy stats), ``nosensor``
+    (stats only), ``fixed`` (image-independent weights). ``dcfg_nolive`` is simply
+    ``dcfg`` with a randomly initialised sensor (pass an un-loaded ``sensor``).
+
+    Gradient policy: the DCT energy statistics fed to the gate are NOT detached.
+    They are a smooth function of the input, the whole module runs under one
+    objective, and detaching would only remove a legitimate (if small) gradient
+    path; nothing is unstable about it since stats go through log(.+1e-6).
+    If ``freeze_sensor`` the sensor has requires_grad=False and stays in eval mode
+    (BatchNorm running stats fixed); gradients still flow *through* it to the input.
+
+    ``sensor_amp`` (default True) lets the sensor CNN use fp16 autocast on CUDA only.
+    The rest of the module runs in fp32 with autocast disabled and returns the input dtype.
+    ``forward(x01) -> (y01, w)`` with w of shape (B,3,8,8).
+    """
+
+    def __init__(self, gate_kind: str = "dcfg", sensor: DegradationSensor | None = None,
+                 freeze_sensor: bool = False, sensor_amp: bool = True) -> None:
+        super().__init__()
+        if gate_kind not in GATE_KINDS:
+            raise ValueError(f"gate_kind must be one of {GATE_KINDS}")
+        self.gate_kind = gate_kind
+        self.sensor_amp = sensor_amp
+        self.dct = BlockDCT()
+        self.sensor: DegradationSensor | None = None
+        self.gate: nn.Module
+        if gate_kind == "dcfg":
+            self.sensor = sensor if sensor is not None else DegradationSensor()
+            self.gate = FrequencyGate(use_sensor=True)
+        elif gate_kind == "nosensor":
+            self.gate = FrequencyGate(use_sensor=False)
+        else:
+            self.gate = FixedGate()
+        self.freeze_sensor = freeze_sensor
+        if freeze_sensor and self.sensor is not None:
+            for p in self.sensor.parameters():
+                p.requires_grad_(False)
+            self.sensor.eval()
+
+    def train(self, mode: bool = True) -> "FrontEnd":
+        super().train(mode)
+        if self.freeze_sensor and self.sensor is not None:
+            self.sensor.eval()
+        return self
+
+    def _embed(self, x: Tensor) -> Tensor:
+        """Sensor embedding (fp32 out). On CUDA the sensor CNN alone runs in fp16 autocast
+        (fp32 at 256x256 is only ~1.9k img/s on a 3060); DCT and gate stay fp32 (PLAN 7.5)."""
+        assert self.sensor is not None
+        if self.sensor_amp and x.is_cuda:
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                return self.sensor.embed(x).float()
+        return self.sensor.embed(x)
+
+    def forward(self, x01: Tensor) -> tuple[Tensor, Tensor]:
+        in_dtype = x01.dtype
+        with torch.autocast(device_type=x01.device.type, enabled=False):
+            x = x01.float()
+            coef = self.dct(rgb_to_ycbcr(x))
+            if self.gate_kind == "dcfg":
+                assert self.sensor is not None
+                w = self.gate(log_energy(coef), self._embed(x))
+            elif self.gate_kind == "nosensor":
+                w = self.gate(log_energy(coef))
+            else:
+                w = self.gate(x.shape[0])
+            y = ycbcr_to_rgb(self.dct.inverse(coef * w[:, :, None, None]))
+            return y.clamp(0, 1).to(in_dtype), w

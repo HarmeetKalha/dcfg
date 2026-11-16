@@ -33,7 +33,7 @@ Code/prep that does not need FF++ data, pulled forward from later phases. Gates 
   - DEFERRED: 5.2 freq study, 5.3-5.4 baseline eval + curves, GATE 5.
 - [ ] D. Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
   - DEFERRED: 6.4 FF++ val embedding plot -> then GATE 6.
-- [ ] E. Phase 7 complete: models/dct.py, gate.py, fixed.py, frontend.py + tests + reviewer -> GATE 7 (needs no FF++).
+- [x] E. (code done: 49 tests pass, 2428 img/s; reviewer pending -> GATE 7) Phase 7 complete: models/dct.py, gate.py, fixed.py, frontend.py + tests + reviewer -> GATE 7 (needs no FF++).
 - [ ] F. Phase 8.1 code only: train/train_frontend.py + configs.
   - DEFERRED: 8.2 smoke/resume tests, 8.3 timing/ETA, 8.4 config/queue generation, GATE 8.
 Order: A + C + E in parallel now, then B, D, F.
