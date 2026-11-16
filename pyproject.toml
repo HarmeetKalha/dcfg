@@ -12,3 +12,5 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["perf: throughput benchmarks, run with `pytest -m perf`"]
+addopts = "-m 'not perf'"

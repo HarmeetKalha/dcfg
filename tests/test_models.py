@@ -30,10 +30,13 @@ def test_dct_roundtrip_and_orthonormal():
 
 
 def test_dct_matches_scipy():
-    x = _x(1, 8)
-    ours = BlockDCT()(x)[0, 0, 0, 0].numpy()
-    ref = scipy.fft.dctn(x[0, 0].numpy().astype("float64"), norm="ortho")
-    assert abs(ours - ref).max() < 1e-5
+    x = _x(1, 24)
+    ours = BlockDCT()(x)
+    for c in range(3):
+        for bi, bj in [(0, 0), (1, 2), (2, 1)]:
+            blk = x[0, c, bi*8:bi*8+8, bj*8:bj*8+8].numpy().astype("float64")
+            ref = scipy.fft.dctn(blk, norm="ortho")
+            assert abs(ours[0, c, bi, bj].numpy() - ref).max() < 1e-5
 
 
 def test_dct_requires_multiple_of_8():
@@ -103,6 +106,40 @@ def test_frozen_sensor():
     fe.train()
     assert not fe.sensor.training
     assert all(not p.requires_grad for p in fe.sensor.parameters())
+    bn = [m for m in fe.sensor.modules() if isinstance(m, torch.nn.BatchNorm2d)]
+    before = [(m.running_mean.clone(), m.running_var.clone()) for m in bn]
+    _perturb(fe)
+    x = _x(2, 32).requires_grad_(True)
+    _, w = fe(x)
+    (w ** 2).sum().backward()  # loss on gate w only: grad reaches x via sensor and stats
+    for m, (rm, rv) in zip(bn, before):
+        assert torch.equal(m.running_mean, rm) and torch.equal(m.running_var, rv)
+    assert x.grad is not None and x.grad.abs().sum() > 0
+    assert all(p.grad is None for p in fe.sensor.parameters())
+
+
+@pytest.mark.parametrize("c,u,v", [(0, 0, 0), (0, 1, 5), (1, 6, 2), (2, 3, 7), (2, 7, 1)])
+def test_single_coefficient_layout(c, u, v):
+    fe = FrontEnd("fixed").eval()
+    big = -50.0  # w = 2*sigmoid(-50) ~ 0
+    with torch.no_grad():
+        fe.gate.logits[c, u, v] = big
+    x = _x(1, 24, seed=3)
+    # keep away from clamp: use mid-range image
+    x = 0.25 + 0.5 * x
+    y, w = fe(x)
+    assert w[0, c, u, v] < 1e-6
+    ycc = rgb_to_ycbcr(x)[0].double().numpy()
+    for ch in range(3):
+        for bi in range(3):
+            for bj in range(3):
+                blk = ycc[ch, bi*8:bi*8+8, bj*8:bj*8+8]
+                co = scipy.fft.dctn(blk, norm="ortho")
+                if ch == c:
+                    co[u, v] = 0.0
+                ycc[ch, bi*8:bi*8+8, bj*8:bj*8+8] = scipy.fft.idctn(co, norm="ortho")
+    ref = ycbcr_to_rgb(torch.from_numpy(ycc).float()[None])
+    assert (y - ref.clamp(0, 1)).abs().max() < 1e-4  # output is clamped to [0,1]
 
 
 def test_w_varies_across_images():
@@ -126,8 +163,8 @@ def test_autocast_fp16_keeps_fp32_compute(kind):
         y, w = fe(x)
     assert y.dtype == torch.float32 and w.dtype == torch.float32
     assert (y - x).abs().max() < 1e-5
-    y16, w16 = fe(x.half()) if False else fe(x.double())
-    assert y16.dtype == torch.float64
+    yd, _ = fe(x.double())
+    assert yd.dtype == torch.float64
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
@@ -149,8 +186,10 @@ def test_no_band_constructs():
             assert word not in text, f"{word} in {f.name}"
 
 
+@pytest.mark.perf
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs CUDA")
 def test_throughput():
+    """Throughput benchmark (>= 2000 img/s). Excluded by default; run with `pytest -m perf`."""
     fe = FrontEnd("dcfg").cuda().eval()
     x = torch.rand(64, 3, 256, 256, device="cuda")
     with torch.no_grad():
