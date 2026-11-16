@@ -1,0 +1,40 @@
+{
+  "job_id": "sensor_live",
+  "test": {
+    "center": {
+      "srcc": 0.5150117249067775,
+      "plcc": 0.5592448115348816
+    },
+    "five_crop": {
+      "srcc": 0.5760811901741437,
+      "plcc": 0.607540488243103
+    }
+  },
+  "n_train": 930,
+  "n_val": 116,
+  "n_test": 116,
+  "best_epoch": 66,
+  "best_val_srcc": 0.6867950640064583,
+  "epochs_run": 86,
+  "mos_mean": 55.78934077915309,
+  "mos_std": 20.330533467726486,
+  "git_commit": "c2fc493fbb45e4fe40643cb0ced060f951178203",
+  "config": {
+    "seed": 42,
+    "live_root": "~/data/live/ChallengeDB_release",
+    "split_path": "~/data/live/split_seed42.json",
+    "subset": null,
+    "batch_size": 32,
+    "max_epochs": 200,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "warmup_epochs": 1,
+    "patience": 20,
+    "num_workers": 6,
+    "amp": true,
+    "weights_path": "~/data/weights/sensor_live.pt",
+    "results_dir": "results/raw",
+    "heartbeat_s": 60,
+    "wandb_project": "dcfg"
+  }
+}
