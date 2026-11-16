@@ -34,7 +34,7 @@ Code/prep that does not need FF++ data, pulled forward from later phases. Gates 
 - [~] D. (code done + reviewed, blocker (clobber) fixed, 94 tests pass; QUEUED: sensor_live after ffpp_dl_c23_original (~7 min), sensor_live_p10 at end of queue; results -> results/raw/sensor_live__*.json; then report SRCC/PLCC) Phase 6.1-6.3, 6.5: data/live.py, models/sensor.py, train/train_sensor.py, queue sensor training (runs after downloads; runner is serial), SRCC/PLCC report, save sensor_live.pt.
   - DEFERRED: 6.4 FF++ val embedding plot -> then GATE 6.
 - [x] E. (code done; GATE 7 review: 0 blockers, test fixes applied; per-part LayerNorm added per user decision; 2420 img/s; awaiting user GATE 7 approval) Phase 7 complete: models/dct.py, gate.py, fixed.py, frontend.py + tests + reviewer -> GATE 7 (needs no FF++).
-- [ ] F. Phase 8.1 code only: train/train_frontend.py + configs.
+- [x] F. (done: 115 tests pass; xception dcfg ~250 img/s bs32 synthetic, 3.95 GB; open user decisions: sensor trainable?, epoch_mode balanced vs full, UCF fine-tune loss) Phase 8.1 code only: train/train_frontend.py + configs.
   - DEFERRED: 8.2 smoke/resume tests, 8.3 timing/ETA, 8.4 config/queue generation, GATE 8.
 Order: A + C + E in parallel now, then B, D, F.
 
