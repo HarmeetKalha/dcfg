@@ -1,0 +1,17 @@
+# LIVE pretraining of the degradation sensor (PLAN 6.1 / 6.2)
+seed: 42
+live_root: ~/data/live/ChallengeDB_release
+split_path: ~/data/live/split_seed42.json
+subset: null            # int -> use a random subset of that many images (tests only)
+batch_size: 32
+max_epochs: 200
+lr: 1.0e-3
+weight_decay: 1.0e-4
+warmup_epochs: 1
+patience: 20
+num_workers: 6
+amp: true
+weights_path: ~/data/weights/sensor_live.pt
+results_dir: results/raw
+heartbeat_s: 60
+wandb_project: dcfg
