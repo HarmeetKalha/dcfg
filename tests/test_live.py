@@ -18,7 +18,7 @@ def test_count_and_no_calibration(rec):
     import re
     assert len(rec.names) == 1162 and len(rec.mos) == 1162
     assert not any(re.fullmatch(r"t[1-7]\.bmp", n.lower()) for n in rec.names)
-    assert all((rec.root / "Images" / n).is_file() for n in rec.names[:20])
+    assert all((rec.root / "Images" / n).is_file() for n in rec.names)
 
 
 def test_split_disjoint_stable(rec, tmp_path):
@@ -47,10 +47,10 @@ def test_crops_no_resize(rec):
     assert torch.equal(f[3], torch.from_numpy(src[h - CROP:, w - CROP:]).permute(2, 0, 1).float() / 255)
     t, _ = LiveDataset(rec, [0], "train", 0.0, 1.0)[0]  # random crop = (flipped) window of the source
     full = torch.from_numpy(src.copy()).permute(2, 0, 1).float() / 255
-    found = any(torch.equal(full[:, y:y + CROP, x:x + CROP], c)
-                for c in (t, t.flip(-1))
-                for y in range(h - CROP + 1) for x in range(w - CROP + 1)
-                if full[0, y, x] == c[0, 0, 0])
+    found = False
+    for c in (t, t.flip(-1)):
+        ys, xs = torch.nonzero(full[0, :h - CROP + 1, :w - CROP + 1] == c[0, 0, 0], as_tuple=True)
+        found = found or any(torch.equal(full[:, y:y + CROP, x:x + CROP], c) for y, x in zip(ys.tolist(), xs.tolist()))
     assert found
 
 

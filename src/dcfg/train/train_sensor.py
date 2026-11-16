@@ -64,6 +64,26 @@ def _save_atomic(obj: Any, path: Path) -> None:
     tmp.replace(path)
 
 
+def _check_clobber(path: Path, job_id: str, overwrite: bool, sidecar: Path | None = None) -> None:
+    """Refuse to replace ``path`` written by a different job (or by an unknown one) unless ``overwrite``.
+
+    The owner is the ``job_id`` field for json files, else the text of ``sidecar``. Same job_id (a
+    runner retry) is allowed."""
+    if overwrite or not path.exists():
+        return
+    owner = None
+    if sidecar is not None:
+        owner = sidecar.read_text().strip() if sidecar.exists() else None
+    else:
+        try:
+            owner = json.loads(path.read_text()).get("job_id")
+        except (OSError, ValueError):
+            owner = None
+    if owner != job_id:
+        raise FileExistsError(f"{path} exists (written by job {owner!r}); refusing to overwrite from job "
+                              f"{job_id!r}. Pass --overwrite to replace it.")
+
+
 def _rng_state() -> dict[str, Any]:
     return {"python": random.getstate(), "numpy": np.random.get_state(), "torch": torch.get_rng_state(),
             "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None}
@@ -79,10 +99,10 @@ def _set_rng_state(s: dict[str, Any]) -> None:
 
 def _loader(rec: LiveRecords, idx: list[int], mode: str, mean: float, std: float, cfg: dict,
             shuffle: bool, bs: int | None = None) -> DataLoader:
-    nw = int(cfg["num_workers"])
+    nw = int(cfg["num_workers"]) if shuffle else min(2, int(cfg["num_workers"]))
     return DataLoader(LiveDataset(rec, idx, mode, mean, std), batch_size=bs or int(cfg["batch_size"]),
                       shuffle=shuffle, drop_last=shuffle, num_workers=nw, pin_memory=torch.cuda.is_available(),
-                      persistent_workers=nw > 0)
+                      persistent_workers=shuffle and nw > 0)
 
 
 @torch.no_grad()
@@ -119,7 +139,8 @@ def _lr_lambda(steps_per_epoch: int, warmup_epochs: int, max_epochs: int):
 
 def train_one(cfg: dict, rec: LiveRecords, train_idx: list[int], val_idx: list[int] | None,
               run_dir: Path, mean: float, std: float, max_epochs: int, early_stop: bool,
-              job_id: str, tag: str = "") -> dict[str, Any]:
+              job_id: str, tag: str = "", hb_dir: Path | None = None,
+              hb_extra: dict | None = None) -> dict[str, Any]:
     """Train (resumably) in ``run_dir``. With ``early_stop`` select best on val SRCC, else
     run exactly ``max_epochs`` and keep the last model. Returns state incl. best/last paths."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -143,15 +164,18 @@ def train_one(cfg: dict, rec: LiveRecords, train_idx: list[int], val_idx: list[i
         sched.load_state_dict(ck["scheduler"]); scaler.load_state_dict(ck["scaler"])
         st = ck["state"]; _set_rng_state(ck["rng"])
         print(f"[{tag}] resumed from epoch {st['epoch']}", flush=True)
-    hb = Heartbeat(run_dir, float(cfg["heartbeat_s"]))
+    hb = Heartbeat(hb_dir or run_dir, float(cfg["heartbeat_s"]))
+    hx = hb_extra or {}
     wb = None
     if not tag:
         try:
             import wandb
             wb = wandb.init(project=cfg["wandb_project"], job_type="sensor", name=job_id, id=job_id,
-                            resume="allow", config=cfg, dir=str(run_dir))
+                            resume="allow", config=cfg, dir=str(run_dir),
+                            settings=wandb.Settings(init_timeout=60))
         except Exception as e:  # noqa: BLE001
-            print(f"wandb disabled: {e}", flush=True)
+            wb = None
+            print(f"WARNING: wandb init failed, continuing without W&B: {e}", flush=True)
     csv_path = run_dir / "metrics.csv"
     new_csv = not csv_path.exists()
     ep_times: list[float] = []
@@ -167,10 +191,14 @@ def train_one(cfg: dict, rec: LiveRecords, train_idx: list[int], val_idx: list[i
             loss = loss_fn(p.float(), y)
             opt.zero_grad(set_to_none=True)
             scaler.scale(loss).backward()
-            scaler.step(opt); scaler.update(); sched.step()
+            scale_before = scaler.get_scale()
+            scaler.step(opt); scaler.update()
+            # fp16 overflow makes the scaler skip opt.step (scale shrinks); then don't advance the LR schedule
+            if scaler.get_scale() >= scale_before:
+                sched.step()
             st["step"] += 1
             run_loss += float(loss.detach()); nb += 1
-            hb.beat(st["step"], epoch=ep, val_srcc=st["best_srcc"], eta="?")
+            hb.beat(st["step"], epoch=ep, val_srcc=st["best_srcc"], eta="?", **hx)
         train_loss, dt = run_loss / max(1, nb), time.time() - t0
         ep_times.append(dt)
         val_srcc = float("nan")
@@ -187,19 +215,28 @@ def train_one(cfg: dict, rec: LiveRecords, train_idx: list[int], val_idx: list[i
         _save_atomic({"model": model.state_dict(), "optimizer": opt.state_dict(), "scheduler": sched.state_dict(),
                       "scaler": scaler.state_dict(), "state": st, "rng": _rng_state(), "epoch": ep}, last)
         eta = int(np.mean(ep_times) * (max_epochs - ep))
-        hb.beat(st["step"], force=True, epoch=ep, val_srcc=val_srcc, best_srcc=st["best_srcc"], eta=f"{eta}s")
+        hb.beat(st["step"], force=True, epoch=ep, val_srcc=val_srcc, best_srcc=st["best_srcc"], eta=f"{eta}s", **hx)
         with csv_path.open("a", newline="") as f:
             w = csv.writer(f)
             if new_csv:
                 w.writerow(["epoch", "step", "train_loss", "val_srcc", "lr", "epoch_s"]); new_csv = False
             w.writerow([ep, st["step"], f"{train_loss:.5f}", f"{val_srcc:.5f}", f"{sched.get_last_lr()[0]:.3e}", f"{dt:.1f}"])
         if wb is not None:
-            wb.log({"epoch": ep, "train_loss": train_loss, "val_srcc": val_srcc, "lr": sched.get_last_lr()[0]}, step=ep)
+            try:
+                wb.log({"epoch": ep, "train_loss": train_loss, "val_srcc": val_srcc, "lr": sched.get_last_lr()[0]}, step=ep)
+            except Exception as e:  # noqa: BLE001
+                wb = None
+                print(f"WARNING: wandb log failed, disabling W&B: {e}", flush=True)
         print(f"[{tag}] ep {ep} loss {train_loss:.4f} val_srcc {val_srcc:.4f} {dt:.1f}s", flush=True)
     if wb is not None:
-        wb.finish()
+        try:
+            wb.finish()
+        except Exception as e:  # noqa: BLE001
+            print(f"WARNING: wandb finish failed: {e}", flush=True)
     # final model for fixed-epoch mode is last.pt; otherwise best.pt
-    final = best if early_stop and best.exists() else last
+    if early_stop and not best.exists():
+        raise RuntimeError(f"early-stopping run finished without {best} (no valid val SRCC)")
+    final = best if early_stop else last
     ck = torch.load(final, map_location="cpu", weights_only=False)
     model.load_state_dict(ck["model"])
     return {"model": model, "dev": dev, "state": st, "epoch_s": float(np.mean(ep_times)) if ep_times else None}
@@ -209,7 +246,9 @@ def _evaluate(model: nn.Module, dev: torch.device, rec: LiveRecords, idx: list[i
               mean: float, std: float, cfg: dict) -> dict[str, dict[str, float]]:
     out = {}
     for mode, name in (("center", "center"), ("five", "five_crop")):
-        out[name] = metrics(*predict(model, _loader(rec, idx, mode, mean, std, cfg, False, bs=16), dev))
+        ld = _loader(rec, idx, mode, mean, std, cfg, False, bs=16)
+        out[name] = metrics(*predict(model, ld, dev))
+        del ld  # free eval loader (and its workers) right away
     return out
 
 
@@ -220,6 +259,11 @@ def _records(cfg: dict) -> LiveRecords:
 
 def run_main(cfg: dict, run_dir: Path, overwrite: bool) -> dict[str, Any]:
     job_id = os.environ.get("DCFG_JOB_ID", run_dir.name)
+    wpath = _path(cfg["weights_path"])
+    meta = wpath.with_suffix(".job")
+    jpath = _path(cfg["results_dir"]) / "sensor_live__test.json"
+    _check_clobber(wpath, job_id, overwrite, meta)  # fail fast, before training
+    _check_clobber(jpath, job_id, overwrite)
     rec = _records(cfg)
     sp = get_split(rec, _path(cfg["split_path"]), 42)
     mean, std = mos_stats(rec, sp["train"])
@@ -230,35 +274,34 @@ def run_main(cfg: dict, run_dir: Path, overwrite: bool) -> dict[str, Any]:
            "n_test": len(sp["test"]), "best_epoch": st["best_epoch"], "best_val_srcc": st["best_srcc"],
            "epochs_run": st["epoch"], "mos_mean": mean, "mos_std": std, "git_commit": _git_commit(),
            "config": cfg}
-    _write_json_atomic(_path(cfg["results_dir"]) / "sensor_live__test.json", res)
-    wpath = _path(cfg["weights_path"])
-    meta = wpath.with_suffix(".job")
-    prev = meta.read_text().strip() if meta.exists() else None
-    if not wpath.exists() or overwrite or prev != job_id:
-        wpath.parent.mkdir(parents=True, exist_ok=True)
-        _save_atomic(model.backbone_state_dict(), wpath)
-        meta.write_text(job_id)
-    else:
-        print(f"{wpath} exists from the same job_id; not overwriting (use --overwrite)", flush=True)
+    # weights and json both come from the best.pt model loaded above, saved together here
+    _check_clobber(wpath, job_id, overwrite, meta)
+    _check_clobber(jpath, job_id, overwrite)
+    wpath.parent.mkdir(parents=True, exist_ok=True)
+    _save_atomic(model.backbone_state_dict(), wpath)
+    meta.write_text(job_id)
+    _write_json_atomic(jpath, res)
     print(json.dumps({k: res[k] for k in ("test", "best_epoch")}), flush=True)
     return res
 
 
-def run_protocol10(cfg: dict, run_dir: Path) -> dict[str, Any]:
+def run_protocol10(cfg: dict, run_dir: Path, overwrite: bool = False) -> dict[str, Any]:
     rdir = _path(cfg["results_dir"])
     main = json.loads((rdir / "sensor_live__test.json").read_text())
     n_ep = int(main["best_epoch"])
     job_id = os.environ.get("DCFG_JOB_ID", run_dir.name)
+    _check_clobber(rdir / "sensor_live__protocol10.json", job_id, overwrite)
     rec = _records(cfg)
     per = []
-    for sp in random_80_20_splits(len(rec.names)):
+    for sp in random_80_20_splits(len(rec.names), tuple(range(int(cfg.get("p10_splits", 10))))):
         d = run_dir / f"split{sp['seed']}"
         done = d / "result.json"
         if done.exists():
             per.append(json.loads(done.read_text())); continue
         mean, std = mos_stats(rec, sp["train"])
         c = dict(cfg, seed=int(cfg["seed"]) + sp["seed"])
-        r = train_one(c, rec, sp["train"], None, d, mean, std, n_ep, False, job_id, tag=f"p10_s{sp['seed']}")
+        r = train_one(c, rec, sp["train"], None, d, mean, std, n_ep, False, job_id, tag=f"p10_s{sp['seed']}",
+                      hb_dir=run_dir, hb_extra={"split": sp["seed"]})
         ev = _evaluate(r["model"], r["dev"], rec, sp["test"], mean, std, cfg)
         item = {"split_seed": sp["seed"], "test": ev, "n_train": len(sp["train"]), "n_test": len(sp["test"]),
                 "mos_mean": mean, "mos_std": std}
@@ -289,7 +332,7 @@ def main(argv: list[str] | None = None) -> None:
     run_dir = Path(a.run_dir or os.environ.get("DCFG_RUN_DIR") or RUNS_ROOT / ("sensor_live_p10" if a.protocol10 else "sensor_live"))
     run_dir.mkdir(parents=True, exist_ok=True)
     if a.protocol10:
-        run_protocol10(cfg, run_dir)
+        run_protocol10(cfg, run_dir, a.overwrite)
     else:
         run_main(cfg, run_dir, a.overwrite)
 

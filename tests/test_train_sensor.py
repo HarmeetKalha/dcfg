@@ -34,3 +34,43 @@ def test_tiny_run_and_resume(tmp_path, monkeypatch):
     assert out["n_test"] == res["n_test"] and "five_crop" in out["test"]
     sd = torch.load(tmp_path / "w" / "sensor_live.pt", weights_only=True)
     assert all(k.startswith(("features.", "embedding.")) for k in sd)
+
+
+def test_clobber_rules(tmp_path, monkeypatch):
+    monkeypatch.setenv("WANDB_MODE", "disabled")
+    cfg = _cfg(tmp_path, 1)
+    monkeypatch.setenv("DCFG_JOB_ID", "A")
+    ts.run_main(cfg, tmp_path / "r1", False)
+    monkeypatch.setenv("DCFG_JOB_ID", "B")
+    with pytest.raises(FileExistsError):
+        ts.run_main(cfg, tmp_path / "r2", False)
+    monkeypatch.setenv("DCFG_JOB_ID", "A")  # retry of same job
+    ts.run_main(cfg, tmp_path / "r1", False)
+    monkeypatch.setenv("DCFG_JOB_ID", "B")
+    ts.run_main(cfg, tmp_path / "r2", True)  # --overwrite
+    assert json.loads((tmp_path / "res" / "sensor_live__test.json").read_text())["job_id"] == "B"
+    assert (tmp_path / "w" / "sensor_live.job").read_text() == "B"
+    # unknown owner (no sidecar) is refused
+    (tmp_path / "w" / "sensor_live.job").unlink()
+    monkeypatch.setenv("DCFG_JOB_ID", "C")
+    with pytest.raises(FileExistsError):
+        ts.run_main(cfg, tmp_path / "r3", False)
+
+
+def test_tiny_protocol10(tmp_path, monkeypatch):
+    monkeypatch.setenv("WANDB_MODE", "disabled")
+    monkeypatch.setenv("DCFG_JOB_ID", "p10")
+    cfg = _cfg(tmp_path, 1)
+    cfg["p10_splits"] = 2
+    (tmp_path / "res").mkdir()
+    (tmp_path / "res" / "sensor_live__test.json").write_text(json.dumps({"best_epoch": 1, "job_id": "main"}))
+    run = tmp_path / "p10run"
+    ts.run_protocol10(cfg, run)
+    assert (run / "heartbeat").exists() and not (run / "split0" / "heartbeat").exists()
+    hb = json.loads((run / "heartbeat").read_text())
+    assert {"split", "epoch", "step"} <= set(hb)
+    out = json.loads((tmp_path / "res" / "sensor_live__protocol10.json").read_text())
+    assert out["n_splits"] == 2 and "five_crop" in out["median"]
+    with pytest.raises(FileExistsError):
+        monkeypatch.setenv("DCFG_JOB_ID", "other")
+        ts.run_protocol10(cfg, tmp_path / "p10b")
