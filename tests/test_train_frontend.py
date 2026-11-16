@@ -18,6 +18,8 @@ from dcfg.paths import REPO_ROOT
 from dcfg.train import train_frontend as tf
 
 SZ = 64
+_REAL_BUILD = tf.build_detector
+from dcfg.detectors.adapter import Detector as _RealDetector  # noqa: E402
 
 
 class DummyDetector(nn.Module):
@@ -116,14 +118,14 @@ def test_resume_mid_epoch_matches_uninterrupted(data, tmp_path):
 
     class Crashing(tf.Trainer):
         def after_step(self, step):
-            if step == 10:  # spe = 6, ckpts at 4, 6 (epoch end), 8 -> last.pt is mid-epoch 1, batch 2
+            if step == 10:  # full mode: spe = 12, ckpts at 4, 8 -> last.pt is mid-epoch 0, batch 8
                 raise Crash
 
     cfg = cfg_for(data, tmp_path, "fixed", run_dir=str(tmp_path / "res"), ckpt_every_steps=4)
     with pytest.raises(Crash):
         Crashing(cfg).train()
     ck = torch.load(tmp_path / "res" / "last.pt", weights_only=False)
-    assert (ck["state"]["step"], ck["state"]["step_in_epoch"], ck["state"]["epoch"]) == (8, 2, 1)
+    assert (ck["state"]["step"], ck["state"]["step_in_epoch"], ck["state"]["epoch"]) == (8, 8, 0)
     tf.Trainer(cfg).train()
 
     def parse(p):
@@ -138,7 +140,7 @@ def test_resume_mid_epoch_matches_uninterrupted(data, tmp_path):
     assert len({h for *_, h in a}) == len(a)  # no batch repeats in the uninterrupted run
     assert "# resumed" in (tmp_path / "res" / "batches.log").read_text()
     resumed = (tmp_path / "res" / "batches.log").read_text().split("# resumed")[1].splitlines()[1]
-    assert resumed.split()[:3] == ["1", "2", "8"]  # continues at epoch 1, batch 2, step 8
+    assert resumed.split()[:3] == ["0", "8", "8"]  # continues at epoch 0, batch 8, step 8
 
 
 def test_frozen_assertion_trips(data, tmp_path):
@@ -216,12 +218,60 @@ def test_gradscaler_used(data, tmp_path, monkeypatch):
     assert (tmp_path / "run_nosensor" / "last.pt").exists()
 
 
+def test_frozen_sensor_ablation_config_and_training(data, tmp_path):
+    cfg = tf.load_config(REPO_ROOT / "configs" / "train" / "dcfg_frozensensor_xception.yaml")
+    base = tf.load_config(REPO_ROOT / "configs" / "train" / "dcfg_xception.yaml")
+    assert {k: (cfg[k], base[k]) for k in cfg if cfg[k] != base[k]} == {
+        "run_id": ("dcfg_frozensensor_xception", "dcfg_xception"), "freeze_sensor": (True, False)}
+    t = tf.Trainer(cfg_for(data, tmp_path, "dcfg", freeze_sensor=True, max_steps=6))
+    s0 = {k: v.clone() for k, v in t.frontend.sensor.state_dict().items()}
+    g0 = {k: v.clone() for k, v in t.frontend.gate.state_dict().items()}
+    t.train()
+    assert all(torch.equal(s0[k], v) for k, v in t.frontend.sensor.state_dict().items())
+    assert not t.frontend.sensor.training and not any(p.requires_grad for p in t.frontend.sensor.parameters())
+    assert not torch.equal(g0["fc2.weight"], t.frontend.gate.state_dict()["fc2.weight"])
+
+
+def test_full_mode_default_oversamples_reals_uniformly():
+    assert tf.load_config(REPO_ROOT / "configs" / "train" / "base.yaml")["epoch_mode"] == "full"
+    labels = np.array([0] * 10 + [1] * 45)
+    o = tf.epoch_order(labels, 1, 0, "full")
+    assert len(o) == 90 and labels[o].sum() == 45 and len(set(np.flatnonzero(labels == 1)) - set(o)) == 0
+    cnt = np.bincount(o[labels[o] == 0], minlength=10)[:10]
+    assert set(cnt) <= {4, 5} and cnt.sum() == 45
+    p = tf.epoch_order(labels, 1, 0, "full", paired_half=3)
+    b = labels[p].reshape(-1, 6)
+    assert (b[:, :3] == 0).all() and (b[:, 3:] == 1).all() and len(p) == 90
+
+
+UCF_W = __import__("dcfg.detectors.registry", fromlist=["x"]).default_weights_path("ucf")
+
+
+@pytest.mark.skipif(not UCF_W.exists(), reason="UCF DFB weights absent")
+def test_augft_ucf_native_loss(data, tmp_path, monkeypatch):
+    monkeypatch.setattr(tf, "build_detector", _REAL_BUILD)
+    monkeypatch.setattr("dcfg.detectors.adapter.Detector", _RealDetector)
+    cfg = cfg_for(data, tmp_path, "augft", detector="ucf", max_steps=3, batch_size=4, amp=False)
+    t = tf.Trainer(cfg)
+    assert t.native_ucf and t.det.training is False
+    p0 = [p.detach().clone() for p in t.det.parameters()]
+    losses = []
+    orig = t.model.native_ucf_loss
+    monkeypatch.setattr(t.model, "native_ucf_loss", lambda *a: losses.append(orig(*a)) or losses[-1])
+    t.train()
+    assert len(losses) == 3 and all(torch.isfinite(l) for l in losses)
+    assert any(not torch.equal(a, b) for a, b in zip(p0, t.det.parameters()))
+    spe = [int(l.split()[3] != "") for l in (tmp_path / "run_augft" / "batches.log").read_text().splitlines()]
+    assert len(spe) == 3
+
+
 def test_epoch_order_balanced_and_deterministic():
     labels = np.array([0] * 10 + [1] * 40)
-    o = tf.epoch_order(labels, 42, 3)
+    o = tf.epoch_order(labels, 42, 3, "balanced")
     assert len(o) == 20 and labels[o].sum() == 10 and len(set(o)) == 20
     assert np.array_equal(o, tf.epoch_order(labels, 42, 3))
     assert not np.array_equal(o, tf.epoch_order(labels, 42, 4))
+    f = tf.epoch_order(labels, 42, 0)  # default arg is balanced; full is requested explicitly below
     f = tf.epoch_order(labels, 42, 0, "full")
     assert len(f) == 80 and labels[f].sum() == 40
 
