@@ -21,11 +21,10 @@
 - smoke_gpu_01 DONE via Task Scheduler runner; user confirmed ntfy + W&B. GATE 1 passed. Pushed to GitHub (private HarmeetKalha/dcfg); secret scan of history clean.
 - Phase 2: FF++ script present at ~/data/ffpp_raw/faceforensics_download_v4.py. Script reviewed: stock v4 downloader, safe. Server EU2 (EU refused, CA timeout). ops/jobs/ffpp_download.sh + 10 queue jobs (c23 then c40 x 5 types).
 - RUNNING: FF++ downloads started ~13:50 UTC 2026-11-16 (ffpp_dl_c23_original first). ETA rough: ~4-8 h total (~12-15 GB at ~0.7+ MB/s; speed unmeasured on bulk).
-- LIVE blocked on human step (Google form + Box download). Checker src/dcfg/data/live_check.py written, untested (.mat var names assumed).
+- LIVE VERIFIED: zip from user's Downloads -> ~/data/live/ChallengeDB_release/{Data,Images} (extracted excluding __MACOSX/.DS_Store; 413 MB). live_check: 1169 .mat entries (images + MOS), calibration t1-t7.bmp in Images/trainingImages, 1162 non-calibration images all open. Zip kept at ~/data/live/ChallengeDB_release.zip.
 
 ## Blockers (user action needed)
-- LIVE: fill form http://goo.gl/forms/HfOwfnDpr6, download zip from https://utexas.box.com/v/ChallengeDB-release to C:\Users\ME\Downloads\.
+- none
 
 ## Next
-- Copy LIVE zip from /mnt/c/Users/ME/Downloads to ~/data/live, unzip, flatten, run live_check.
 - When downloads finish: verify 1000 videos per type for c23 and c40, record sizes -> GATE 2.

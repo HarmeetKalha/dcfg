@@ -32,7 +32,7 @@ def check(root: Path) -> dict:
     if len(names) != N_TOTAL or len(mos) != N_TOTAL:
         rep["errors"].append(f"expected {N_TOTAL} entries")
     rep["calibration"] = names[:N_CALIB]
-    rep["calib_all_training"] = all("training" in n.lower() for n in names[:N_CALIB])
+    rep["calib_all_training"] = all((root / "Images" / "trainingImages" / n).is_file() for n in names[:N_CALIB])
     bad, missing = [], []
     for n in names[N_CALIB:]:
         p = root / "Images" / n
