@@ -24,10 +24,6 @@
 - LIVE blocked on human step (Google form + Box download). Checker src/dcfg/data/live_check.py written, untested (.mat var names assumed).
 
 ## Blockers (user action needed)
-- (done) `.wslconfig` applied.
-- (done) gh authenticated; user confirmed ntfy test arrived on phone.
-
-## Blockers (user action needed)
 - LIVE: fill form http://goo.gl/forms/HfOwfnDpr6, download zip from https://utexas.box.com/v/ChallengeDB-release to C:\Users\ME\Downloads\.
 
 ## Next
