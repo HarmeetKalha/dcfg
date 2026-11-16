@@ -20,7 +20,7 @@
 - Task Scheduler tasks registered by user (DCFG-Runner Ready; watchdog PT30M, indefinite).
 - smoke_gpu_01 DONE via Task Scheduler runner; user confirmed ntfy + W&B. GATE 1 passed. Pushed to GitHub (private HarmeetKalha/dcfg); secret scan of history clean.
 - Phase 2: FF++ script present at ~/data/ffpp_raw/faceforensics_download_v4.py. Script reviewed: stock v4 downloader, safe. Server EU2 (EU refused, CA timeout). ops/jobs/ffpp_download.sh + 10 queue jobs (c23 then c40 x 5 types).
-- RUNNING: FF++ downloads started ~13:50 UTC 2026-11-16 (ffpp_dl_c23_original first). ETA rough: ~4-8 h total (~12-15 GB at ~0.7+ MB/s; speed unmeasured on bulk).
+- RUNNING: FF++ downloads started 13:44 UTC 2026-11-16. Measured ~26 videos/min (104 in 4 min) -> ETA ~6 h for all 10,000 videos, i.e. ~20:00 UTC (c40 smaller, likely faster).
 - LIVE VERIFIED: zip from user's Downloads -> ~/data/live/ChallengeDB_release/{Data,Images} (extracted excluding __MACOSX/.DS_Store; 413 MB). live_check: 1169 .mat entries (images + MOS), calibration t1-t7.bmp in Images/trainingImages, 1162 non-calibration images all open. Zip kept at ~/data/live/ChallengeDB_release.zip.
 
 ## Blockers (user action needed)
