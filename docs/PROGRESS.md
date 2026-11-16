@@ -1,6 +1,6 @@
 # PROGRESS
 
-**Current phase:** 1 — Environment and skeleton (in progress)
+**Current phase:** 2 — Data acquisition (in progress). GATE 1 PASSED 2026-11-16.
 **Last updated:** 2026-11-16
 
 ## Done
@@ -18,13 +18,14 @@
 - requirements.lock frozen (98 pkgs). First commit c850f36 (not pushed).
 - GATE 1 review done: BLOCKER (.gitignore `data` ignored src/dcfg/data) fixed in 5514389. SHOULD-FIXes done, tests 21 passed (watchdog restart via schtasks, job process-group kill, pinger leak, pidfile liveness, heartbeat alert tags/cooldown, CRLF, hidden task window). See DECISIONS.md.
 - Task Scheduler tasks registered by user (DCFG-Runner Ready; watchdog PT30M, indefinite).
-- RUNNING: smoke_gpu_01 started 13:37 UTC via schtasks (runner alive, W&B run 8isowoiq syncing). ETA ~13:41 UTC.
+- smoke_gpu_01 DONE via Task Scheduler runner; user confirmed ntfy + W&B. GATE 1 passed. Pushed to GitHub (private HarmeetKalha/dcfg); secret scan of history clean.
+- Phase 2: FF++ script present at ~/data/ffpp_raw/faceforensics_download_v4.py. `data-engineer` reviewing it, picking server, writing download jobs, fetching LIVE.
 
 ## Blockers (user action needed)
 - (done) `.wslconfig` applied.
 - (done) gh authenticated; user confirmed ntfy test arrived on phone.
 
 ## Next
-- User confirms: ntfy 'start' + 'done' + 'queue finished' on phone; W&B run smoke_gpu_01 visible. Then one ops/status.sh check (expect done=1).
-- GATE 1 summary -> wait for user "continue" -> Phase 2 (data acquisition).
-- Optional: push to GitHub (ask first).
+- Review data-engineer report; start runner (schtasks) for FF++ downloads; one status check; record ETA.
+- LIVE: verify 1169 .mat entries / 1162 images (may need user to download zip manually).
+- GATE 2 next session: 1000 videos per type per compression.
