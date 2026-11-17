@@ -1,0 +1,30 @@
+{
+  "run_id": "base_xception",
+  "detector": "xception",
+  "condition": "noise_s5",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.9263074561502421,
+  "frame_auc_ci": [
+    0.9101365163300442,
+    0.9406962646403286
+  ],
+  "video_auc": 0.9669260204081632,
+  "video_auc_ci": [
+    0.9529281637259078,
+    0.9789946723650775
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "3e17cfd5b72b965cc4b1e3fc21cd29122c632af1",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T09:52:32.312195+00:00",
+  "scores_file": "scores/base_xception__noise_s5.npz"
+}

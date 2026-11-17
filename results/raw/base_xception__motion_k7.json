@@ -1,0 +1,30 @@
+{
+  "run_id": "base_xception",
+  "detector": "xception",
+  "condition": "motion_k7",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.9271027122545349,
+  "frame_auc_ci": [
+    0.9085853447432001,
+    0.9431882748524539
+  ],
+  "video_auc": 0.9527423469387755,
+  "video_auc_ci": [
+    0.9349851310210417,
+    0.9682460220344818
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "8cad55ec1c80c0a42abafdb12b9ab6791af00ef8-dirty",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T10:03:22.212576+00:00",
+  "scores_file": "scores/base_xception__motion_k7.npz"
+}

@@ -1,0 +1,30 @@
+{
+  "run_id": "base_f3net",
+  "detector": "f3net",
+  "condition": "jpeg_q90",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.9737665903948357,
+  "frame_auc_ci": [
+    0.9658885515769156,
+    0.9808942190604348
+  ],
+  "video_auc": 0.989375,
+  "video_auc_ci": [
+    0.9836220388710069,
+    0.9943264010850917
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "4d7e6a47288e75f21478f5c6b4f75db96d997ec0-dirty",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T10:42:05.292172+00:00",
+  "scores_file": "scores/base_f3net__jpeg_q90.npz"
+}

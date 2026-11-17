@@ -1,0 +1,30 @@
+{
+  "run_id": "base_f3net",
+  "detector": "f3net",
+  "condition": "blur_s2",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.9241607471256007,
+  "frame_auc_ci": [
+    0.9061333926577155,
+    0.9386294199810956
+  ],
+  "video_auc": 0.9601658163265306,
+  "video_auc_ci": [
+    0.9441595135497872,
+    0.9726310520888612
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "f3cdd4890293458bd5f38db8f059d861bbdc81fc",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T10:49:03.196283+00:00",
+  "scores_file": "scores/base_f3net__blur_s2.npz"
+}

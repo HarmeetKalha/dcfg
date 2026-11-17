@@ -1,0 +1,30 @@
+{
+  "run_id": "base_xception",
+  "detector": "xception",
+  "condition": "blur_s4",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.6099664186276952,
+  "frame_auc_ci": [
+    0.5652584714690321,
+    0.6533165001088604
+  ],
+  "video_auc": 0.6282908163265306,
+  "video_auc_ci": [
+    0.5775709205106118,
+    0.6767693481092105
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "3e17cfd5b72b965cc4b1e3fc21cd29122c632af1",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T09:51:26.805807+00:00",
+  "scores_file": "scores/base_xception__blur_s4.npz"
+}

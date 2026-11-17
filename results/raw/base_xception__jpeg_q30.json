@@ -1,0 +1,30 @@
+{
+  "run_id": "base_xception",
+  "detector": "xception",
+  "condition": "jpeg_q30",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.9078345972022409,
+  "frame_auc_ci": [
+    0.8900141211428025,
+    0.9232775922941836
+  ],
+  "video_auc": 0.9548086734693878,
+  "video_auc_ci": [
+    0.9379380770030854,
+    0.9693202494594166
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "3e17cfd5b72b965cc4b1e3fc21cd29122c632af1",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T09:46:01.148486+00:00",
+  "scores_file": "scores/base_xception__jpeg_q30.npz"
+}

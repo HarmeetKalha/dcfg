@@ -1,0 +1,30 @@
+{
+  "run_id": "base_ucf",
+  "detector": "ucf",
+  "condition": "mixed_light",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.9046460242661384,
+  "frame_auc_ci": [
+    0.8865615533038758,
+    0.9215272280513809
+  ],
+  "video_auc": 0.9448724489795919,
+  "video_auc_ci": [
+    0.9271308075422469,
+    0.9608434477940627
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "f3cdd4890293458bd5f38db8f059d861bbdc81fc-dirty",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T11:40:38.474189+00:00",
+  "scores_file": "scores/base_ucf__mixed_light.npz"
+}

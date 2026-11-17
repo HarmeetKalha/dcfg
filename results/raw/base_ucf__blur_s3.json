@@ -1,0 +1,30 @@
+{
+  "run_id": "base_ucf",
+  "detector": "ucf",
+  "condition": "blur_s3",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.7740352665557814,
+  "frame_auc_ci": [
+    0.7421287959729915,
+    0.8046305333407922
+  ],
+  "video_auc": 0.8281377551020408,
+  "video_auc_ci": [
+    0.7910538510528248,
+    0.8611160265737883
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "f3cdd4890293458bd5f38db8f059d861bbdc81fc",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T11:23:35.208781+00:00",
+  "scores_file": "scores/base_ucf__blur_s3.npz"
+}

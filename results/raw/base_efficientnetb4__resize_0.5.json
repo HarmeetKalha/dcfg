@@ -1,0 +1,30 @@
+{
+  "run_id": "base_efficientnetb4",
+  "detector": "efficientnetb4",
+  "condition": "resize_0.5",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.965234227051795,
+  "frame_auc_ci": [
+    0.955606021166912,
+    0.9733198426124722
+  ],
+  "video_auc": 0.9847704081632653,
+  "video_auc_ci": [
+    0.9775890556869451,
+    0.9908285780244022
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "8cad55ec1c80c0a42abafdb12b9ab6791af00ef8-dirty",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T10:28:02.790187+00:00",
+  "scores_file": "scores/base_efficientnetb4__resize_0.5.npz"
+}

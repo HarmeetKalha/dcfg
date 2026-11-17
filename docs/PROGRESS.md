@@ -60,6 +60,11 @@ Order: A + C + E in parallel now, then B, D, F.
 - RUNNING (started ~09:40 UTC 11-17): base_<det> on all 23 test conditions (Phase 5.3), ETA ~12:00 UTC; then phase8_smoke (8.2 smoke+resume, 8.3 batch sizes/timing/ETA -> results/qa/phase8_{smoke,eta}.md, phase8_batch.yaml), ETA a few hours.
 - Next after queue: results-analyst baseline curves -> GATE 5; run ops/jobs/gen_matrix.py (configs + printed queue lines) + reviewer pre-launch review -> GATE 8 (user approves ETA before queueing the matrix).
 
+- 2026-11-17 12:27 UTC: queue done (27/27). base_<det> on all 23 conditions DONE. phase8_smoke PASS: all 7 variants loss decreases + val + ckpt; resume exact (0 repeated/skipped batches); UCF native loss finite with amp on/off; all detectors fit bs32. Steady img/s: xcep dcfg 216 / fixed 317 / augft 203 / jointft 158; effb4 123/152/123; f3net 205/269/183; ucf 165/203/augft-native 70.
+- GATE 8 ETA (results/qa/phase8_eta.md), GPU-days worst(30 ep)/likely(15 ep, assumption): G1 6.69/3.49; G2 1.72/0.89 (cum 8.41/4.38); G3 0.85/0.44 (cum 9.27/4.83); G4 0.66/0.35 (cum 9.93/5.18). Longest single run augft_ucf ~26.6 h worst.
+- 20 configs generated (configs/train/*.yaml); queue lines in scratchpad (gen_matrix.py prints them). NOT queued.
+- RUNNING: reviewer GATE 8 pre-launch review; results-analyst GATE 5 baseline curves.
+
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.
 - On return: ops/status.sh once. When downloads DONE: `python ops/jobs/verify_ffpp_downloads.py` -> GATE 2. After dfb_rearrange: queue preprocess_qa, freq_study, sensor_embedding (lines from make_eval_queue.py) -> GATE 3/5.2/6.4; base_<det> evals after GATE 4 reproduction.

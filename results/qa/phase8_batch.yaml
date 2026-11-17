@@ -1,0 +1,5 @@
+# largest batch <= 32 that fits for BOTH dcfg and augft (3-step test, amp); written by phase8_smoke.py
+xception: 32
+efficientnetb4: 32
+f3net: 32
+ucf: 32

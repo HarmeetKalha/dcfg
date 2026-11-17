@@ -1,0 +1,30 @@
+{
+  "run_id": "base_ucf",
+  "detector": "ucf",
+  "condition": "webp_q20",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.8418989575327057,
+  "frame_auc_ci": [
+    0.8183831959927589,
+    0.8653919565473086
+  ],
+  "video_auc": 0.8964668367346939,
+  "video_auc_ci": [
+    0.8723663701777197,
+    0.9199064039136002
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "f3cdd4890293458bd5f38db8f059d861bbdc81fc-dirty",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T11:47:03.176664+00:00",
+  "scores_file": "scores/base_ucf__webp_q20.npz"
+}

@@ -1,0 +1,30 @@
+{
+  "run_id": "base_ucf",
+  "detector": "ucf",
+  "condition": "motion_k7",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.9459617860935238,
+  "frame_auc_ci": [
+    0.9325198755251536,
+    0.9589049063961824
+  ],
+  "video_auc": 0.9629336734693877,
+  "video_auc_ci": [
+    0.9480040381404402,
+    0.9759792602015114
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "f3cdd4890293458bd5f38db8f059d861bbdc81fc-dirty",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T11:49:12.080193+00:00",
+  "scores_file": "scores/base_ucf__motion_k7.npz"
+}

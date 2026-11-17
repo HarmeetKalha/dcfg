@@ -1,0 +1,30 @@
+{
+  "run_id": "base_efficientnetb4",
+  "detector": "efficientnetb4",
+  "condition": "motion_k11",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 22388,
+  "n_videos": 700,
+  "frame_auc": 0.8275233299412994,
+  "frame_auc_ci": [
+    0.7961941320397121,
+    0.8571090552776601
+  ],
+  "video_auc": 0.8744642857142857,
+  "video_auc_ci": [
+    0.842806101528421,
+    0.9043672812699791
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "4d7e6a47288e75f21478f5c6b4f75db96d997ec0-dirty",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T10:39:13.761967+00:00",
+  "scores_file": "scores/base_efficientnetb4__motion_k11.npz"
+}
