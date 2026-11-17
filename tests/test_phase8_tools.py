@@ -20,15 +20,17 @@ def test_matrix_is_exactly_the_74_list_in_order() -> None:
     assert len(ids) == len(set(ids)) == 20
     exp_t1 = [f"{v}_{d}" for d in ("xception", "efficientnetb4", "f3net", "ucf") for v in ("dcfg", "fixed", "augft")]
     assert ids[:12] == exp_t1
-    assert ids[12:] == ["dcfg_jointft_xception", "dcfg_nolive_xception", "gate_nosensor_xception",
-                        "dcfg_frozensensor_xception", "dcfg_xception_s43", "dcfg_xception_s44",
+    assert ids[12:] == ["gate_nosensor_xception", "dcfg_frozensensor_xception", "dcfg_nolive_xception",
+                        "dcfg_jointft_xception", "dcfg_xception_s43", "dcfg_xception_s44",
                         "fixed_xception_s43", "fixed_xception_s44"]
+    assert [r["group"] for r in gm.matrix_runs()] == [1] * 12 + [2] * 4 + [3] * 2 + [4] * 2
 
 
 def test_run_attributes() -> None:
     by = {r["run_id"]: r for r in gm.matrix_runs()}
     assert by["dcfg_ucf"]["variant"] == "dcfg" and by["dcfg_ucf"]["detector"] == "ucf"
     assert by["augft_f3net"]["variant"] == "augft" and by["augft_f3net"]["seed"] == 42
+    assert by["dcfg_xception_s44"]["seed"] == 44
     assert by["fixed_xception_s44"]["seed"] == 44 and by["fixed_xception_s44"]["variant"] == "fixed"
     assert by["dcfg_xception_s43"]["seed"] == 43
     assert by["gate_nosensor_xception"]["variant"] == "nosensor"
@@ -57,7 +59,7 @@ def test_configs_and_queue_lines(tmp_path: Path, capsys: pytest.CaptureFixture[s
     c = yaml.safe_load((out / "dcfg_efficientnetb4.yaml").read_text())
     assert c["batch_size"] == 24 and c["detector"] == "efficientnetb4" and c["variant"] == "dcfg"
     assert yaml.safe_load((out / "fixed_ucf.yaml").read_text())["batch_size"] == 16
-    assert yaml.safe_load((out / "fixed_xception_s44.yaml").read_text())["seed"] == 44
+    assert yaml.safe_load((out / "dcfg_xception_s44.yaml").read_text())["seed"] == 44
     assert yaml.safe_load((out / "dcfg_frozensensor_xception.yaml").read_text())["freeze_sensor"] is True
 
 
@@ -104,6 +106,8 @@ def test_build_eta_totals_and_missing() -> None:
     val = {"xception": {"dcfg": 600.0, "augft": 500.0}}
     rows, tot = ps.build_eta(runs, {"xception": 32}, rates, val, {"xception": (1500.0, "log")}, n_fake=64000)
     assert len(rows) == len(runs) == 11 and not tot["missing"]
+    assert sorted(tot["groups"]) == [1, 2, 3, 4]
+    assert abs(sum(g["worst_gpu_days"] for g in tot["groups"].values()) - tot["worst_gpu_days"]) < 1e-9
     by = {r["run_id"]: r for r in rows}
     assert by["dcfg_xception"]["steps_per_epoch"] == 4000
     assert by["dcfg_xception"]["train_epoch_s"] == pytest.approx(4000 * 32 / 100)

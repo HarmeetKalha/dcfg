@@ -188,13 +188,20 @@ def build_eta(runs: list[dict[str, Any]], bs_det: dict[str, int], rates: dict[st
             continue
         spe = steps_per_epoch(n_fake, bs, v == "augft" and det == "ucf")
         w, l = run_eta(spe, bs, img_s, vs, ev, EPOCHS_WORST), run_eta(spe, bs, img_s, vs, ev, EPOCHS_LIKELY)
-        rows.append({"run_id": r["run_id"], "tier": r["tier"], "variant": v, "detector": det, "bs": bs,
+        rows.append({"run_id": r["run_id"], "group": r.get("group", r["tier"]), "tier": r["tier"], "variant": v, "detector": det, "bs": bs,
                      "timing_class": cls, "img_s": img_s, "steps_per_epoch": spe, "eval_src": ev_src,
                      **{k: w[k] for k in ("train_epoch_s", "val_epoch_s", "epoch_s", "eval_s")},
                      "total_worst_s": w["total_s"], "total_likely_s": l["total_s"]})
     tot = {"worst_gpu_days": sum(x["total_worst_s"] for x in rows) / 86400,
            "likely_gpu_days": sum(x["total_likely_s"] for x in rows) / 86400, "n_runs": len(rows),
            "missing": miss}
+    groups: dict[int, dict[str, float]] = {}
+    for x in rows:
+        g = groups.setdefault(x["group"], {"n_runs": 0, "worst_gpu_days": 0.0, "likely_gpu_days": 0.0})
+        g["n_runs"] += 1
+        g["worst_gpu_days"] += x["total_worst_s"] / 86400
+        g["likely_gpu_days"] += x["total_likely_s"] / 86400
+    tot["groups"] = groups
     return rows, tot
 
 
@@ -210,6 +217,17 @@ def eta_markdown(rows: list[dict[str, Any]], tot: dict[str, Any], notes: list[st
                    f"{x['steps_per_epoch']} | {x['train_epoch_s'] / 60:.1f} | {x['val_epoch_s'] / 60:.1f} | "
                    f"{x['epoch_s'] / 60:.1f} | {x['eval_s'] / 60:.1f} ({x['eval_src']}) | "
                    f"{h(x['total_worst_s'])} | {h(x['total_likely_s'])} |")
+    names = {1: "dcfg/fixed/augft x 4 detectors", 2: "Xception ablations (nosensor, frozensensor, nolive, jointft)",
+             3: "dcfg_xception extra seeds (43, 44)", 4: "fixed_xception extra seeds (43, 44)"}
+    out += ["", "## Per priority group (you can stop after any group)", "",
+            "| group | contents | runs | worst (GPU-days) | likely (GPU-days) | cumulative worst | cumulative likely |",
+            "|" + "---|" * 7]
+    cw = cl = 0.0
+    for g in sorted(tot.get("groups", {})):
+        d = tot["groups"][g]
+        cw += d["worst_gpu_days"]; cl += d["likely_gpu_days"]
+        out.append(f"| {g} | {names.get(g, '')} | {d['n_runs']} | {d['worst_gpu_days']:.2f} | "
+                   f"{d['likely_gpu_days']:.2f} | {cw:.2f} | {cl:.2f} |")
     out += ["", f"**Total ({tot['n_runs']} runs): worst case {tot['worst_gpu_days']:.2f} GPU-days; likely case "
             f"(15 epochs, assumption) {tot['likely_gpu_days']:.2f} GPU-days.**"]
     if tot["missing"]:

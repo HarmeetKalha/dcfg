@@ -23,31 +23,38 @@ PY = ".venv/bin/python"
 DETECTORS = ["xception", "efficientnetb4", "f3net", "ucf"]
 TIER1_VARIANTS = ["dcfg", "fixed", "augft"]
 DEFAULT_BATCH = 32
-#: Tier 2 (all Xception, seed 42 unless suffixed): (run_id, variant, seed, freeze_sensor)
-TIER2: list[tuple[str, str, int, bool]] = [
-    ("dcfg_jointft_xception", "dcfg_jointft", 42, False),
-    ("dcfg_nolive_xception", "dcfg_nolive", 42, False),
+#: Priority groups (user decision 2026-11-17). Group 1 = Tier 1 (dcfg/fixed/augft x 4 detectors, Xception first).
+#: Group 2 = Xception-only ablations; group 3 = extra seeds of dcfg_xception; group 4 = extra seeds of fixed_xception.
+#: Entries: (run_id, variant, seed, freeze_sensor)
+GROUP2: list[tuple[str, str, int, bool]] = [
     ("gate_nosensor_xception", "nosensor", 42, False),
     ("dcfg_frozensensor_xception", "dcfg", 42, True),
+    ("dcfg_nolive_xception", "dcfg_nolive", 42, False),
+    ("dcfg_jointft_xception", "dcfg_jointft", 42, False),
+]
+GROUP3: list[tuple[str, str, int, bool]] = [
     ("dcfg_xception_s43", "dcfg", 43, False),
     ("dcfg_xception_s44", "dcfg", 44, False),
+]
+GROUP4: list[tuple[str, str, int, bool]] = [
     ("fixed_xception_s43", "fixed", 43, False),
     ("fixed_xception_s44", "fixed", 44, False),
 ]
+TIER2 = GROUP2 + GROUP3 + GROUP4  # back-compat name
 
 
 def matrix_runs() -> list[dict[str, Any]]:
-    """The Tier 1-2 runs in PLAN 8.4 order: dicts with run_id, tier, variant, detector, seed, freeze_sensor."""
+    """All runs in priority order: dicts with run_id, group (1-4), tier, variant, detector, seed, freeze_sensor."""
     runs: list[dict[str, Any]] = []
     for det in DETECTORS:
         for v in TIER1_VARIANTS:
-            runs.append({"run_id": f"{v}_{det}", "tier": 1, "variant": v, "detector": det, "seed": 42,
+            runs.append({"run_id": f"{v}_{det}", "group": 1, "tier": 1, "variant": v, "detector": det, "seed": 42,
                          "freeze_sensor": False})
-    for rid, v, seed, fz in TIER2:
-        runs.append({"run_id": rid, "tier": 2, "variant": v, "detector": "xception", "seed": seed,
-                     "freeze_sensor": fz})
+    for g, entries in ((2, GROUP2), (3, GROUP3), (4, GROUP4)):
+        for rid, v, seed, fz in entries:
+            runs.append({"run_id": rid, "group": g, "tier": 2, "variant": v, "detector": "xception", "seed": seed,
+                         "freeze_sensor": fz})
     return runs
-
 
 def load_batch(path: Path) -> dict[str, int]:
     """``{detector: batch_size}``; empty dict (with a warning) if the file is missing."""
