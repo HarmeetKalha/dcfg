@@ -208,7 +208,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif a.detector_ckpt:
         extra = {"detector_ckpt": a.detector_ckpt}
     source = DFBJsonSource(a.json, a.frames_root)
-    hb = Heartbeat((Path(a.runs_dir) if a.runs_dir else RUNS_ROOT) / a.run)
+    # heartbeat dir: --runs-dir/<run>, else the runner's DCFG_RUN_DIR (job id may differ from --run), else runs/<run>
+    env_dir = os.environ.get("DCFG_RUN_DIR")
+    hb = Heartbeat(Path(a.runs_dir) / a.run if a.runs_dir else Path(env_dir) if env_dir else RUNS_ROOT / a.run)
     commit = dfb_commit()
 
     def model(x01: torch.Tensor) -> torch.Tensor:

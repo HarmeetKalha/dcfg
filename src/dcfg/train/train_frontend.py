@@ -233,6 +233,26 @@ class TrainDataset(Dataset):
                 torch.tensor(float(rec.label)), ridx, SPE_LABEL[rec.video.split("/")[0]])
 
 
+def stratified_videos(records: list[FrameRecord], n: int | None, seed: int = 0) -> set[str] | None:
+    """Deterministic subset of ``n`` videos, spread evenly over the video groups (real / DF / F2F / FS / NT).
+
+    ``None`` (or n >= #videos) selects everything (returns None = no filtering). Used for the capped
+    validation pass (smoke / timing runs); real training runs validate on the full val split."""
+    by: dict[str, list[str]] = {}
+    for v in sorted({r.video for r in records}):
+        by.setdefault(v.split("/")[0], []).append(v)
+    if n is None or n >= sum(len(x) for x in by.values()):
+        return None
+    rng = np.random.default_rng(seed)
+    picks = {g: [vs[i] for i in rng.permutation(len(vs))] for g, vs in by.items()}
+    out: set[str] = set()
+    while len(out) < n:  # round-robin over groups
+        for g in sorted(picks):
+            if picks[g] and len(out) < n:
+                out.add(picks[g].pop())
+    return out
+
+
 def batch_hash(ridx: Tensor) -> str:
     return hashlib.sha1(ridx.numpy().astype(np.int64).tobytes()).hexdigest()[:12]
 
@@ -454,20 +474,29 @@ class Trainer:
 
         aucs: dict[str, float] = {}
         wmaps: dict[str, list] = {}
+        times: dict[str, float] = {}
+        nfr: dict[str, int] = {}
+        keep = None
+        if self.cfg.get("val_max_videos"):
+            keep = stratified_videos(self.source.records("val", "c23"), int(self.cfg["val_max_videos"]))
         for cond in self.val_conds:
+            t0 = time.time()
             recs = self.source.records("val", condition_comp(cond))
+            if keep is not None:
+                recs = [r for r in recs if r.video in keep]
             ld = DataLoader(ConditionDataset(self.source, recs, cond), batch_size=64, shuffle=False,
                             num_workers=int(self.cfg["val_workers"]), pin_memory=self.dev.type == "cuda")
             wsum.clear(); wn[0] = 0
             prob = predict(fn, ld, str(self.dev))
             aucs[cond.name] = frame_auc([r.label for r in recs], prob)
+            times[cond.name], nfr[cond.name] = time.time() - t0, len(recs)
             if wn[0]:
                 wmaps[cond.name] = (torch.stack(wsum).sum(0) / wn[0]).tolist()
         mean_auc = float(np.nanmean(list(aucs.values())))
         if not np.isfinite(mean_auc):
             raise RuntimeError(f"val selection metric undefined: {aucs}")
         self.model.train(was_training)
-        return {"aucs": aucs, "mean_auc": mean_auc, "wmaps": wmaps}
+        return {"aucs": aucs, "mean_auc": mean_auc, "wmaps": wmaps, "times_s": times, "n_frames": nfr}
 
     # -------------------------------------------------------------- training
     def after_step(self, step: int) -> None:
@@ -625,6 +654,9 @@ class Trainer:
         if truncated:
             self.save_last()
             res = {"run_id": cfg["run_id"], "truncated": True, "step": st["step"], "img_s": self._img_s}
+            if cfg.get("val_on_truncate"):  # smoke/timing: one val pass (optionally capped by val_max_videos)
+                v = self.validate()
+                res["val"] = {k: v[k] for k in ("aucs", "mean_auc", "times_s", "n_frames")}
             (self.run_dir / "done.json").write_text(json.dumps(res))
             return res
         return self._finalize()

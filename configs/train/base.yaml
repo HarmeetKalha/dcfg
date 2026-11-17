@@ -13,6 +13,8 @@ epoch_mode: full        # full: every fake frame each epoch, reals oversampled t
 batch_size: 32
 num_workers: 6
 val_workers: 4
+val_max_videos: null   # smoke/timing only: cap val to N videos (stratified by type, all their frames); null = full val split
+val_on_truncate: false  # smoke/timing only: run one val pass when max_steps stops the run
 # optimisation (PLAN 7.5)
 lr_gate: 1.0e-3
 lr_sensor: 1.0e-4
