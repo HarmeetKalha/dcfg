@@ -64,7 +64,8 @@ Order: A + C + E in parallel now, then B, D, F.
 - GATE 8 ETA (results/qa/phase8_eta.md), GPU-days worst(30 ep)/likely(15 ep, assumption): G1 6.69/3.49; G2 1.72/0.89 (cum 8.41/4.38); G3 0.85/0.44 (cum 9.27/4.83); G4 0.66/0.35 (cum 9.93/5.18). Longest single run augft_ucf ~26.6 h worst.
 - 20 configs generated (configs/train/*.yaml); queue lines in scratchpad (gen_matrix.py prints them). NOT queued.
 - GATE 5 data: results/tables/baseline_findings.md, baseline_curves.png. Problem exists: severe conditions -> 0.53-0.65 AUC, c40 ~0.79-0.80. Awaiting user approval.
-- GATE 8 reviewer: 0 BLOCKER; 7 SHOULD-FIX + 3 NITs fixed (seed-order collision across seeds, provenance + checkpoint sha in result JSONs, stale-result guard, run/ckpt match, non-finite abort, val heartbeat, resume config check, finite val AUC; fp16 vs fp32 val diff 6e-6). 144 tests pass. Awaiting user approval of launch (per-group ETA).
+- GATE 8 reviewer: 0 BLOCKER; 7 SHOULD-FIX + 3 NITs fixed (seed-order collision across seeds, provenance + checkpoint sha in result JSONs, stale-result guard, run/ckpt match, non-finite abort, val heartbeat, resume config check, finite val AUC; fp16 vs fp32 val diff 6e-6). 144 tests pass. User requested a PILOT first (2026-11-17); matrix NOT queued.
+- PILOT (user spec 2026-11-17): sanity grid; pilot_{dcfg,fixed,augft}_xception 5 epochs (real settings, 30-ep LR horizon, stop_after_epochs=5); GPU/CPU + data-wait logging; val-only eval of 3 pilots + base on clean/noise_s10/blur_s3/webp_q20/mixed_heavy (c40 val does not exist -> skipped); outputs under runs/pilot, results/pilot, excluded from all final results; report + ntfy, then STOP for user decision. implementer building tooling.
 
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.
