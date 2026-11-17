@@ -54,6 +54,11 @@ Order: A + C + E in parallel now, then B, D, F.
 - Sensor protocol10 (10 random 80/20 splits, 66 epochs): median SRCC/PLCC center 0.657/0.679, 5-crop 0.659/0.674.
 - RUNNING (started 09:03 UTC 11-17): repro_{xception,efficientnetb4,f3net,ucf} (clean c23 test -> results/raw/base_<det>__clean.json), then sensor_embedding, freq_study. Each eval a few minutes.
 
+- GATE 4 reproduction (clean c23 test, 700 videos / 22,388 frames): frame AUC xception 0.9761 (pub 0.9637), effb4 0.9702 (0.9567), f3net 0.9782 (0.9635), ucf 0.9813 (0.9705): all within +0.02 (consistently +0.011..+0.015 higher). Video AUC 0.987-0.993. PASSES criterion; awaiting user sign-off.
+- GATE 6 data: sensor_embedding kNN condition accuracy 0.726 (chance 0.167), silhouette -0.01. t-SNE: noise clearly separated; blur/resize/mixed apart from clean; jpeg_q30 overlaps clean (sensor ~blind to JPEG). Awaiting user sign-off.
+- freq_study done (results/raw/freq_study.npz, results/figures/freq_*.png).
+- RUNNING (started ~09:20 UTC 11-17): base_<det> on all 24 test conditions (Phase 5.3).
+
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.
 - On return: ops/status.sh once. When downloads DONE: `python ops/jobs/verify_ffpp_downloads.py` -> GATE 2. After dfb_rearrange: queue preprocess_qa, freq_study, sensor_embedding (lines from make_eval_queue.py) -> GATE 3/5.2/6.4; base_<det> evals after GATE 4 reproduction.

@@ -1,0 +1,19 @@
+{
+  "n_images": 500,
+  "conditions": [
+    "clean",
+    "jpeg_q30",
+    "blur_s3",
+    "noise_s15",
+    "resize_0.25",
+    "mixed_heavy"
+  ],
+  "weights": "/home/harmeet/data/weights/sensor_live.pt",
+  "split": "val",
+  "seed": 0,
+  "silhouette": -0.010504231788218021,
+  "knn_k": 5,
+  "knn_folds": 5,
+  "knn_accuracy": 0.7256666666666667,
+  "chance": 0.16666666666666666
+}
