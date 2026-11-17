@@ -1,0 +1,36 @@
+{
+  "run_id": "pilot_base_xception",
+  "detector": "xception",
+  "condition": "c40",
+  "split": "val",
+  "compression": "c40",
+  "n_frames": 22341,
+  "n_videos": 699,
+  "frame_auc": 0.7966137734231308,
+  "frame_auc_ci": [
+    0.7667610441536149,
+    0.82684126898735
+  ],
+  "video_auc": 0.8536800408893432,
+  "video_auc_ci": [
+    0.816771705201207,
+    0.8880381397041122
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "4eaee69d5db2ba2e45d7f525584d23f07ae462ae-dirty",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-17T18:07:42.033961+00:00",
+  "scores_file": "scores/pilot_base_xception__c40.npz",
+  "checkpoints": {
+    "detector_weights_path": "/home/harmeet/data/weights/dfb/xception_best.pth",
+    "detector_weights_sha256": "dd61186f9ac8e99aae85982cae338b555dfaeef042f6b699e5a55cae3998ba47"
+  },
+  "train": null,
+  "pilot": true
+}
