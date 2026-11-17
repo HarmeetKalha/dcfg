@@ -1,6 +1,6 @@
 # PROGRESS
 
-**Current phase:** 3/4 — GATE 2 passed; GATE 3 awaiting user approval; Phase 4 reproduction running. GATE 1 PASSED 2026-11-16, GATE 7 approved 2026-11-16.
+**Current phase:** 3/4 — GATE 2 passed; GATES 3, 4, 6 approved 2026-11-17; Phase 5.3 baseline eval running. GATE 1 PASSED 2026-11-16, GATE 7 approved 2026-11-16.
 **Last updated:** 2026-11-16
 
 ## Done
@@ -50,12 +50,12 @@ Order: A + C + E in parallel now, then B, D, F.
 
 - 2026-11-17: all 16 queue jobs DONE (downloads 19:27, preprocessing c23 2h12m + c40 20m, rearrange, sensor_live_p10) before PC restart. WSL processors fixed to 6.
 - GATE 2 PASSED (verify_ffpp_downloads): 1000 videos x 5 types x {c23,c40}, 11.6 GB, no tmp/0-byte files.
-- GATE 3 data: results/qa/preprocess_counts.md + results/figures/qa_crops.png sent to user; ~32 frames/video, failed-detection <1%; zero-face train videos 281 (+ 3 fakes) excluded. Awaiting user approval.
+- GATE 3 data: results/qa/preprocess_counts.md + results/figures/qa_crops.png sent to user; ~32 frames/video, failed-detection <1%; zero-face train videos 281 (+ 3 fakes) excluded. APPROVED by user 2026-11-17 (GATE 3).
 - Sensor protocol10 (10 random 80/20 splits, 66 epochs): median SRCC/PLCC center 0.657/0.679, 5-crop 0.659/0.674.
 - RUNNING (started 09:03 UTC 11-17): repro_{xception,efficientnetb4,f3net,ucf} (clean c23 test -> results/raw/base_<det>__clean.json), then sensor_embedding, freq_study. Each eval a few minutes.
 
-- GATE 4 reproduction (clean c23 test, 700 videos / 22,388 frames): frame AUC xception 0.9761 (pub 0.9637), effb4 0.9702 (0.9567), f3net 0.9782 (0.9635), ucf 0.9813 (0.9705): all within +0.02 (consistently +0.011..+0.015 higher). Video AUC 0.987-0.993. PASSES criterion; awaiting user sign-off.
-- GATE 6 data: sensor_embedding kNN condition accuracy 0.726 (chance 0.167), silhouette -0.01. t-SNE: noise clearly separated; blur/resize/mixed apart from clean; jpeg_q30 overlaps clean (sensor ~blind to JPEG). Awaiting user sign-off.
+- GATE 4 reproduction (clean c23 test, 700 videos / 22,388 frames): frame AUC xception 0.9761 (pub 0.9637), effb4 0.9702 (0.9567), f3net 0.9782 (0.9635), ucf 0.9813 (0.9705): all within +0.02 (consistently +0.011..+0.015 higher). Video AUC 0.987-0.993. GATE 4 APPROVED by user 2026-11-17.
+- GATE 6 data: sensor_embedding kNN condition accuracy 0.726 (chance 0.167), silhouette -0.01. t-SNE: noise clearly separated; blur/resize/mixed apart from clean; jpeg_q30 overlaps clean (sensor ~blind to JPEG). GATE 6 APPROVED by user 2026-11-17.
 - freq_study done (results/raw/freq_study.npz, results/figures/freq_*.png).
 - RUNNING (started ~09:20 UTC 11-17): base_<det> on all 24 test conditions (Phase 5.3).
 
