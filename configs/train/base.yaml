@@ -38,3 +38,8 @@ run_dir: null           # null -> $DCFG_RUN_DIR or runs/<run_id>
 conditions_yaml: configs/eval/conditions.yaml
 max_steps: null         # timing / smoke only: stop after N steps (no val, not for real runs)
 allow_config_change: false  # resume with a changed config only if true
+# pilot / diagnostics (real runs leave these at their defaults)
+pilot: false            # true -> run tagged pilot in all metadata + W&B; never resumes from / mixes with real checkpoints
+stop_after_epochs: null # pilot: finalize after this many epochs while the LR schedule keeps the max_epochs horizon
+timing_sync: false      # true -> torch.cuda.synchronize() each step for exact compute_s (pilot); small overhead
+resource_interval_s: 30 # resource sampler period (resources.csv, W&B res/*)

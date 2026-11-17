@@ -37,6 +37,7 @@ import math
 import os
 import random
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -56,12 +57,14 @@ from dcfg.models.frontend import FrontEnd
 from dcfg.models.sensor import DegradationSensor
 from dcfg.paths import REPO_ROOT, RUNS_ROOT
 from dcfg.utils.heartbeat import Heartbeat
+from dcfg.utils.resources import ResourceSampler, StepTimer, write_summary
 from dcfg.utils.seed import seed_everything
 
 #: config keys that may differ on resume (paths, workers, logging); everything else must match.
 CONFIG_RESUME_IGNORE = frozenset({"run_dir", "json", "frames_root", "sensor_weights", "detector_weights",
                                   "conditions_yaml", "num_workers", "val_workers", "heartbeat_s", "log_every",
-                                  "wandb_project", "max_steps", "allow_config_change"})
+                                  "wandb_project", "max_steps", "allow_config_change",
+                                  "stop_after_epochs", "timing_sync", "resource_interval_s"})
 MAX_CONSEC_SKIPS = 50
 
 
@@ -324,8 +327,10 @@ class Trainer:
         self.cfg = cfg
         self.variant = cfg["variant"]
         self.train_det = self.variant in TRAIN_DETECTOR
+        self.pilot = bool(cfg.get("pilot", False))
+        default_dir = RUNS_ROOT / "pilot" / cfg["run_id"] if self.pilot else RUNS_ROOT / cfg["run_id"]
         self.run_dir = run_dir or Path(cfg["run_dir"] or os.environ.get("DCFG_RUN_DIR")
-                                       or RUNS_ROOT / cfg["run_id"]).expanduser()
+                                       or default_dir).expanduser()
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         seed_everything(int(cfg["seed"]))
@@ -361,7 +366,13 @@ class Trainer:
         self.deg = TrainDegradation()
         self.st: dict[str, Any] = {"epoch": 0, "step_in_epoch": 0, "step": 0, "best": -float("inf"),
                                    "best_epoch": 0, "bad": 0, "stopped": False}
-        self.hb = Heartbeat(self.run_dir, float(cfg["heartbeat_s"]))
+        # heartbeat goes where the runner looks (runs/<job id>), which may differ from run_dir for pilot runs
+        self.hb = Heartbeat(Path(os.environ.get("DCFG_RUN_DIR") or self.run_dir), float(cfg["heartbeat_s"]))
+        self.timer = StepTimer()
+        self.phase = "train"
+        self.sampler: ResourceSampler | None = None
+        self._wb_lock = threading.Lock()
+        self._wb_step = 0
         self.wb: Any = None
         self.val_names = load_val_conditions(_path(cfg["conditions_yaml"]))
         allc = load_conditions(_path(cfg["conditions_yaml"]))
@@ -419,6 +430,10 @@ class Trainer:
         if not last.exists():
             return False
         ck = torch.load(last, map_location="cpu", weights_only=False)
+        if bool(ck.get("config", {}).get("pilot", False)) != self.pilot:
+            raise RuntimeError(f"refusing to resume {last}: its pilot flag "
+                               f"({bool(ck.get('config', {}).get('pilot', False))}) differs from this config's "
+                               f"({self.pilot}); pilot and real runs never share checkpoints")
         diff = config_diff(ck.get("config", {}), self.cfg)
         if diff:
             if not self.cfg.get("allow_config_change"):
@@ -455,7 +470,8 @@ class Trainer:
         try:
             import wandb
             self.wb = wandb.init(project=self.cfg["wandb_project"], job_type="train", name=self.cfg["run_id"],
-                                 id=self.cfg["run_id"], resume="allow", config=self.cfg, dir=str(self.run_dir),
+                                 id=self.cfg.get("wandb_id") or self.cfg["run_id"], resume="allow", config=self.cfg, dir=str(self.run_dir),
+                                 **({"tags": ["pilot"], "group": "pilot"} if self.pilot else {}),
                                  settings=wandb.Settings(init_timeout=60))
         except Exception as e:  # noqa: BLE001
             self.wb = None
@@ -464,11 +480,13 @@ class Trainer:
     def _wandb_log(self, d: dict[str, Any], step: int) -> None:
         if self.wb is None:
             return
-        try:
-            self.wb.log(d, step=step)
-        except Exception as e:  # noqa: BLE001
-            self.wb = None
-            print(f"WARNING: wandb log failed, disabling W&B: {e}", flush=True)
+        with self._wb_lock:  # called from the trainer and the resource-sampler thread; step must not go backwards
+            try:
+                self._wb_step = max(self._wb_step, step)
+                self.wb.log(d, step=self._wb_step)
+            except Exception as e:  # noqa: BLE001
+                self.wb = None
+                print(f"WARNING: wandb log failed, disabling W&B: {e}", flush=True)
 
     def _wandb_alert(self, title: str, text: str, error: bool = False) -> None:
         if self.wb is None:
@@ -485,6 +503,8 @@ class Trainer:
     def validate(self) -> dict[str, Any]:
         """Frame AUC per val condition on the val split (+ mean w per channel / 3x8x8 map per condition)."""
         was_training = self.model.training
+        prev_phase, t_val = self.phase, time.time()
+        self.phase = "val"
         self.model.eval()
         wsum: list[Tensor] = []
         wn = [0]
@@ -522,6 +542,8 @@ class Trainer:
             raise RuntimeError(f"non-finite val AUC for {bad}: {aucs}")
         mean_auc = float(np.mean(list(aucs.values())))
         self.model.train(was_training)
+        self.phase = prev_phase
+        self.st["val_s"] = self.st.get("val_s", 0.0) + time.time() - t_val
         return {"aucs": aucs, "mean_auc": mean_auc, "wmaps": wmaps, "times_s": times, "n_frames": nfr}
 
     # -------------------------------------------------------------- training
@@ -534,6 +556,20 @@ class Trainer:
         return DataLoader(ds, batch_size=self.bs, shuffle=False, drop_last=True, num_workers=nw,
                           pin_memory=self.dev.type == "cuda", prefetch_factor=2 if nw else None)
 
+    def _timed(self, loader: DataLoader) -> Any:
+        """Iterate ``loader``, storing the time blocked in ``next()`` in ``self._last_wait``."""
+        it = iter(loader)
+        while True:
+            t0 = time.perf_counter()
+            try:
+                batch = next(it)
+            except StopIteration:
+                return
+            self._last_wait = time.perf_counter() - t0
+            yield batch
+
+    _last_wait = 0.0
+
     def _train_epoch(self, epoch: int) -> bool:
         """Run the remainder of ``epoch``. Returns False if ``max_steps`` was hit."""
         cfg, st = self.cfg, self.st
@@ -545,7 +581,11 @@ class Trainer:
         log_every, accl, acc_n, acc_img, t_log = int(cfg["log_every"]), None, 0, 0, time.time()
         stats = torch.zeros(4, device=self.dev)  # nonfinite(sensor, gate), zero(sensor, gate) counts
         gn = torch.zeros(2, device=self.dev)
-        for xb, yb, ridx, spe_l in loader:
+        self.phase = "train"
+        sync = bool(cfg.get("timing_sync")) and self.dev.type == "cuda"
+        t_epoch = time.time()
+        for xb, yb, ridx, spe_l in self._timed(loader):
+            t_step = time.perf_counter()
             b = st["step_in_epoch"]
             self._log_line("batches.log", f"{epoch} {b} {st['step']} {batch_hash(ridx)}")
             x = xb.to(self.dev, non_blocking=True).float().div_(255.0)
@@ -569,6 +609,9 @@ class Trainer:
             self.scaler.update()
             if self._after_scaler(scale_before, self.scaler.get_scale()):  # skipped steps do not advance the LR schedule
                 self.sched.step()
+            if sync:  # accurate compute time needs the GPU work to have finished (pilot / timing only)
+                torch.cuda.synchronize()
+            self.timer.add(self._last_wait, time.perf_counter() - t_step)
             st["step"] += 1
             st["step_in_epoch"] += 1
             accl = loss.detach() if accl is None else accl + loss.detach()
@@ -586,7 +629,9 @@ class Trainer:
                          eta=self._eta())
             self.after_step(st["step"])
             if cfg["max_steps"] and st["step"] >= int(cfg["max_steps"]):
+                st["train_s"] = st.get("train_s", 0.0) + time.time() - t_epoch
                 return False
+        st["train_s"] = st.get("train_s", 0.0) + time.time() - t_epoch
         return True
 
     _img_s = 0.0
@@ -669,11 +714,19 @@ class Trainer:
         self.try_resume()
         self.check_frozen()
         self._wandb_init()
+        self.sampler = ResourceSampler(self.run_dir / "resources.csv", float(self.cfg.get("resource_interval_s", 30)),
+                                       self.timer, lambda: self.st["step"], lambda: self.phase,
+                                       on_row=self._log_resources).start()
         try:
             res = self._train_loop()
         except Exception as e:  # noqa: BLE001
             self._wandb_alert(f"{self.cfg['run_id']} crashed", f"{type(e).__name__}: {e}", error=True)
             raise
+        finally:
+            self.sampler.stop()
+        summ = write_summary(self.run_dir, self.st.get("train_s", 0.0), self.st.get("val_s", 0.0))
+        print(f"resources: {json.dumps({k: (round(v, 3) if isinstance(v, float) else v) for k, v in summ.items()})}",
+              flush=True)
         self._wandb_alert(f"{self.cfg['run_id']} finished", json.dumps(res))
         if self.wb is not None:
             try:
@@ -682,10 +735,22 @@ class Trainer:
                 print(f"WARNING: wandb finish failed: {e}", flush=True)
         return res
 
+    def _log_resources(self, row: dict[str, Any]) -> None:
+        """Sampler callback: numeric columns to W&B under ``res/``."""
+        d = {f"res/{k}": float(v) for k, v in row.items()
+             if k not in ("timestamp", "phase", "step") and v is not None}
+        d["res/is_train"] = float(row["phase"] == "train")
+        self._wandb_log(d, int(row["step"]))
+
+    def _pilot_stop_due(self) -> bool:
+        """``stop_after_epochs`` reached (pilot runs follow the real schedule, then stop and finalize)."""
+        n = self.cfg.get("stop_after_epochs")
+        return bool(n) and self.st["epoch"] >= int(n)
+
     def _train_loop(self) -> dict[str, Any]:
         st, cfg = self.st, self.cfg
         truncated = False
-        while st["epoch"] < int(cfg["max_epochs"]) and not st["stopped"]:
+        while st["epoch"] < int(cfg["max_epochs"]) and not st["stopped"] and not self._pilot_stop_due():
             epoch = st["epoch"]
             if st["step_in_epoch"] < self.spe:
                 if not self._train_epoch(epoch):
@@ -694,7 +759,7 @@ class Trainer:
             self._end_of_epoch(epoch)
         if truncated:
             self.save_last()
-            res = {"run_id": cfg["run_id"], "truncated": True, "step": st["step"], "img_s": self._img_s}
+            res = {"run_id": cfg["run_id"], "truncated": True, "pilot": self.pilot, "step": st["step"], "img_s": self._img_s}
             if cfg.get("val_on_truncate"):  # smoke/timing: one val pass (optionally capped by val_max_videos)
                 v = self.validate()
                 res["val"] = {k: v[k] for k in ("aucs", "mean_auc", "times_s", "n_frames")}
@@ -709,14 +774,17 @@ class Trainer:
         self._load_model_state(best["model"])
         meta = {"best_epoch": st["best_epoch"], "val_mean_auc": st["best"], "git_commit": git_commit(),
                 "detector": cfg["detector"], "run_id": cfg["run_id"], "seed": int(cfg["seed"]),
-                "train_config": dict(cfg)}
+                "train_config": dict(cfg), "pilot": self.pilot}
         if self.frontend is not None:
             save_frontend(self.run_dir / "frontend.pt", self.frontend, cfg, meta)
         if self.train_det:  # adapter loads {"state_dict": ...}; "meta" rides along (primitives only)
             _save_atomic({"state_dict": self.det.model.state_dict(), "meta": {**meta, "variant": cfg["variant"]}},
                          self.run_dir / "detector.pt")
         res = {"run_id": cfg["run_id"], "truncated": False, "variant": self.variant, "epochs_run": st["epoch"],
-               "stopped_early": bool(st["stopped"]), "total_time_s": time.time() - self.t_start, **meta}
+               "stopped_early": bool(st["stopped"]), "total_time_s": time.time() - self.t_start,
+               "train_s": st.get("train_s", 0.0), "val_s": st.get("val_s", 0.0), **meta}
+        if self._pilot_stop_due() and not st["stopped"]:
+            res["stopped_after_epochs"] = int(cfg["stop_after_epochs"])
         (self.run_dir / "done.json").write_text(json.dumps(res, indent=2))
         return res
 

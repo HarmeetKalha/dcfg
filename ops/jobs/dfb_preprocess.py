@@ -4,7 +4,7 @@ Wrapper instead of DFB's preprocess.py because that script (a) writes frames nex
 (b) hardcodes ./config.yaml and ./dlib_tools/ relative paths, (c) requires actors/FaceShifter/DFD dirs
 to exist, (d) uses threads, (e) cannot restrict to a split, (f) does not skip finished videos.
 Idempotent/resumable: a marker per finished video under <out>/.done/. Reads raw videos only.
-Usage: dfb_preprocess.py --comp c23|c40 [--test-only] [--raw R] [--out O] [--workers 6] [--limit N]
+Usage: dfb_preprocess.py --comp c23|c40 [--test-only | --split test|val] [--raw R] [--out O] [--workers 6] [--limit N]
 """
 import argparse, glob, json, os, sys, time
 from multiprocessing import Pool
@@ -57,8 +57,8 @@ def work(job):
     done.write_text(f"{n}\t{saved}\n")
     return (seq, comp, vid.stem, n, saved, time.time() - t0)
 
-def test_stems(split_dir):
-    pairs = json.load(open(split_dir / "test.json"))
+def split_stems(split_dir, split="test"):
+    pairs = json.load(open(split_dir / f"{split}.json"))
     s = set()
     for a, b in pairs: s |= {a, b, a + "_" + b, b + "_" + a}
     return s
@@ -67,6 +67,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--comp", required=True, choices=["c23", "c40"])
     ap.add_argument("--test-only", action="store_true")
+    ap.add_argument("--split", choices=["test", "val"], default=None,
+                    help="restrict to the videos of this official split (implies a restriction; --test-only == --split test)")
     ap.add_argument("--raw", default=str(HOME / "data/ffpp_raw"))
     ap.add_argument("--out", default=str(HOME / "data/ffpp_frames/FaceForensics++"))
     ap.add_argument("--workers", type=int, default=6)
@@ -75,7 +77,8 @@ def main():
     ap.add_argument("--only", default="", help="substring filter on sequence name")
     a = ap.parse_args()
     out = Path(a.out)
-    keep = test_stems(Path(os.environ.get("DFB_SPLITS", HOME / "data/ffpp_frames/FaceForensics++"))) if a.test_only else None
+    split = a.split or ("test" if a.test_only else None)
+    keep = split_stems(Path(os.environ.get("DFB_SPLITS", HOME / "data/ffpp_frames/FaceForensics++")), split) if split else None
     jobs = []
     for seq in SEQS:
         if a.only and a.only not in seq: continue

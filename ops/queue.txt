@@ -36,3 +36,14 @@ base_efficientnetb4 | .venv/bin/python -m dcfg.eval.evaluate --run base_efficien
 base_f3net | .venv/bin/python -m dcfg.eval.evaluate --run base_f3net --detector f3net --conditions all --split test #hb=30
 base_ucf | .venv/bin/python -m dcfg.eval.evaluate --run base_ucf --detector ucf --conditions all --split test #hb=30
 phase8_smoke | .venv/bin/python ops/jobs/phase8_smoke.py #hb=30
+pilot_dcfg_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/pilot/pilot_dcfg_xception.yaml #hb=30
+pilot_fixed_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/pilot/pilot_fixed_xception.yaml #hb=30
+pilot_augft_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/pilot/pilot_augft_xception.yaml #hb=30
+dfb_pre_c40_val | bash ops/jobs/dfb_preprocess.sh c40 6 val #noheartbeat
+dfb_rearrange_c40val | bash ops/jobs/dfb_rearrange.sh #noheartbeat
+pilot_sanity_grid | .venv/bin/python ops/jobs/pilot_sanity_grid.py #noheartbeat
+pilot_eval_base | bash ops/jobs/pilot_eval.sh pilot_base_xception #hb=30
+pilot_eval_dcfg | bash ops/jobs/pilot_eval.sh pilot_dcfg_xception #hb=30
+pilot_eval_fixed | bash ops/jobs/pilot_eval.sh pilot_fixed_xception #hb=30
+pilot_eval_augft | bash ops/jobs/pilot_eval.sh pilot_augft_xception #hb=30
+pilot_report | .venv/bin/python ops/jobs/pilot_report.py #noheartbeat

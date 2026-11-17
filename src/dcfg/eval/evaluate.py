@@ -74,10 +74,12 @@ def condition_comp(cond: EvalCondition) -> str:
     return "c23" if cond.synthetic else "c40"
 
 
-def check_out_dir(split: str, out_dir: Path) -> None:
-    """Refuse to write val results into results/raw (paper numbers come only from there)."""
+def check_out_dir(split: str, out_dir: Path, run_id: str = "") -> None:
+    """Refuse to write val or pilot results into results/raw (paper numbers come only from there)."""
     if split != "test" and out_dir.resolve() == RAW_DIR.resolve():
         raise ValueError(f"split {split!r} must not be written to results/raw; pass another --out-dir")
+    if run_id.startswith("pilot_") and out_dir.resolve() == RAW_DIR.resolve():
+        raise ValueError(f"pilot run {run_id!r} must not be written to results/raw; pass another --out-dir")
 
 
 def predict(model: Callable[[torch.Tensor], torch.Tensor], loader: DataLoader, device: str,
@@ -104,7 +106,7 @@ def evaluate_condition(*, run_id: str, detector: str, cond: EvalCondition, split
                        heartbeat: Heartbeat | None = None, dfb_commit_hash: str = "unknown",
                        extra: dict[str, Any] | None = None) -> Path | None:
     """Evaluate one condition and write its JSON + scores npz. Returns the JSON path (None if skipped)."""
-    check_out_dir(split, out_dir)
+    check_out_dir(split, out_dir, run_id)
     json_path = out_dir / f"{run_id}__{cond.name}.json"
     if json_path.exists() and not force:
         return None
@@ -188,7 +190,7 @@ def train_provenance(a_run: str, a_detector: str, frontend: str | None, detector
     m = metas.get("frontend") or metas["detector"]
     return {"run_id": m["run_id"], "variant": m.get("variant"), "detector": m["detector"], "seed": m.get("seed"),
             "best_epoch": m.get("best_epoch"), "val_mean_auc": m.get("val_mean_auc"),
-            "train_git_commit": m.get("git_commit"), "train_config": m.get("train_config")}
+            "train_git_commit": m.get("git_commit"), "train_config": m.get("train_config"), "pilot": bool(m.get("pilot", False))}
 
 
 def checkpoint_identity(detector: str, frontend: str | None, detector_ckpt: str | None,
@@ -258,7 +260,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if a.split != "test" and a.out_dir is None:
         raise SystemExit("--split val requires --out-dir (val results never go to results/raw)")
     out_dir = Path(a.out_dir) if a.out_dir else RAW_DIR
-    check_out_dir(a.split, out_dir)
+    check_out_dir(a.split, out_dir, a.run)
 
     from dcfg.detectors.adapter import Detector
     from dcfg.detectors.registry import dfb_commit
@@ -276,6 +278,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     det = Detector(a.detector, weights_path=a.detector_ckpt or a.weights, device=device).freeze()
     front = None
     extra: dict[str, Any] = {"checkpoints": ident, "train": prov or None}
+    if a.run.startswith("pilot_") or prov.get("pilot"):
+        extra["pilot"] = True
     if a.frontend:
         from dcfg.train.train_frontend import load_frontend
         front, meta = load_frontend(a.frontend, device)

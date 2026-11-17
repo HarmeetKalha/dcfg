@@ -32,7 +32,19 @@ def main():
                 files = sorted(str(f) for f in vd.iterdir())
                 if not files: continue          # zero-face videos are reported by the QA step, not listed
                 J[lab][v2s[vd.name]][comp][vd.name] = {"label": lab, "frames": files}
-    json.dump({"FaceForensics++": J}, open(out / "FaceForensics++.json", "w"))
+    main_json = out / "FaceForensics++.json"
+    if main_json.exists():  # adding new splits (e.g. c40 val) must leave every existing entry untouched
+        old = json.load(open(main_json))["FaceForensics++"]
+        bad = []
+        for lab in old:
+            for s_ in old[lab]:
+                for comp, vids in old[lab][s_].items():
+                    if vids and vids != J.get(lab, {}).get(s_, {}).get(comp):
+                        bad.append(f"{lab}/{s_}/{comp}")
+        if bad:
+            raise SystemExit(f"rearrange would change existing non-empty entries {bad[:6]}; refusing to overwrite")
+    tmp = out / "FaceForensics++.json.tmp"
+    json.dump({"FaceForensics++": J}, open(tmp, "w")); os.replace(tmp, main_json)
     for lab in J:
         if lab != "FF-real":
             json.dump({lab: {"FF-real": J["FF-real"], lab: J[lab]}}, open(out / f"{lab}.json", "w"))

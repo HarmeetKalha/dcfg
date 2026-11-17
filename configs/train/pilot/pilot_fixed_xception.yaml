@@ -1,0 +1,9 @@
+# PILOT: identical to configs/train/fixed_xception.yaml (same base, lr, batch, augmentation, seed, schedule with the
+# real 30-epoch cosine horizon); only run_id/pilot flags differ. Stops after 5 epochs = the real run's first 5 epochs.
+base: ../fixed_xception.yaml
+run_id: pilot_fixed_xception
+pilot: true
+stop_after_epochs: 5
+timing_sync: true
+run_dir: runs/pilot/pilot_fixed_xception
+wandb_id: pilot_fixed_xception_r1

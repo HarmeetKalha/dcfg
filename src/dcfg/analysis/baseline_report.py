@@ -32,14 +32,36 @@ def load_conditions() -> list[dict]:
     return yaml.safe_load(open(REPO / "configs" / "eval" / "conditions.yaml"))["conditions"]
 
 
+def is_pilot(prefix_or_id: str = "", doc: dict | None = None) -> bool:
+    """Pilot results (run id ``pilot_*`` or JSON with ``"pilot": true``) never enter paper tables/reports."""
+    return prefix_or_id.startswith("pilot_") or bool(doc and (doc.get("pilot") or str(doc.get("run_id", "")).startswith("pilot_")))
+
+
+def iter_raw_jsons(raw_dir: Path | None = None):
+    """Yield ``(path, doc)`` for every results/raw/*.json that is not a pilot result. Use this instead of globbing."""
+    for p in sorted((raw_dir or RAW).glob("*.json")):
+        if is_pilot(p.name):
+            continue
+        try:
+            doc = json.load(open(p))
+        except ValueError:
+            continue
+        if isinstance(doc, dict) and is_pilot(doc=doc):
+            continue
+        yield p, doc
+
+
 def load_runs(prefix: str = "base", dets=DETS, conds=None) -> dict:
-    """{(det, cond): json dict or None if missing}."""
+    """{(det, cond): json dict or None if missing}. Pilot runs are rejected / skipped."""
+    if is_pilot(prefix):
+        raise ValueError(f"pilot run prefix {prefix!r} must not be used for paper reports")
     conds = conds or [c["name"] for c in load_conditions()]
     out = {}
     for d in dets:
         for c in conds:
             p = RAW / f"{prefix}_{d}__{c}.json"
-            out[(d, c)] = json.load(open(p)) if p.exists() else None
+            doc = json.load(open(p)) if p.exists() else None
+            out[(d, c)] = None if doc is not None and is_pilot(doc=doc) else doc
     return out
 
 
