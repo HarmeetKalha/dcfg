@@ -37,3 +37,4 @@ wandb_project: dcfg
 run_dir: null           # null -> $DCFG_RUN_DIR or runs/<run_id>
 conditions_yaml: configs/eval/conditions.yaml
 max_steps: null         # timing / smoke only: stop after N steps (no val, not for real runs)
+allow_config_change: false  # resume with a changed config only if true

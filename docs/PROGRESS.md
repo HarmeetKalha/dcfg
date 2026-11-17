@@ -63,7 +63,8 @@ Order: A + C + E in parallel now, then B, D, F.
 - 2026-11-17 12:27 UTC: queue done (27/27). base_<det> on all 23 conditions DONE. phase8_smoke PASS: all 7 variants loss decreases + val + ckpt; resume exact (0 repeated/skipped batches); UCF native loss finite with amp on/off; all detectors fit bs32. Steady img/s: xcep dcfg 216 / fixed 317 / augft 203 / jointft 158; effb4 123/152/123; f3net 205/269/183; ucf 165/203/augft-native 70.
 - GATE 8 ETA (results/qa/phase8_eta.md), GPU-days worst(30 ep)/likely(15 ep, assumption): G1 6.69/3.49; G2 1.72/0.89 (cum 8.41/4.38); G3 0.85/0.44 (cum 9.27/4.83); G4 0.66/0.35 (cum 9.93/5.18). Longest single run augft_ucf ~26.6 h worst.
 - 20 configs generated (configs/train/*.yaml); queue lines in scratchpad (gen_matrix.py prints them). NOT queued.
-- RUNNING: reviewer GATE 8 pre-launch review; results-analyst GATE 5 baseline curves.
+- GATE 5 data: results/tables/baseline_findings.md, baseline_curves.png. Problem exists: severe conditions -> 0.53-0.65 AUC, c40 ~0.79-0.80. Awaiting user approval.
+- GATE 8 reviewer: 0 BLOCKER; 7 SHOULD-FIX + 3 NITs fixed (seed-order collision across seeds, provenance + checkpoint sha in result JSONs, stale-result guard, run/ckpt match, non-finite abort, val heartbeat, resume config check, finite val AUC; fp16 vs fp32 val diff 6e-6). 144 tests pass. Awaiting user approval of launch (per-group ETA).
 
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -151,6 +152,77 @@ def evaluate_condition(*, run_id: str, detector: str, cond: EvalCondition, split
     return json_path
 
 
+def sha256_file(path: str | os.PathLike[str]) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 22), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def read_ckpt_meta(path: str | os.PathLike[str], kind: str) -> dict[str, Any]:
+    """Training metadata stored in ``frontend.pt`` (kind='frontend') or ``detector.pt`` ('detector')."""
+    ck = torch.load(path, map_location="cpu", weights_only=(kind == "detector"))
+    if kind == "detector":
+        if not (isinstance(ck, dict) and "meta" in ck):
+            raise SystemExit(f"{path} has no training metadata (not written by train_frontend)")
+        return dict(ck["meta"])
+    return {k: v for k, v in ck.items() if k != "state_dict"}
+
+
+def train_provenance(a_run: str, a_detector: str, frontend: str | None, detector_ckpt: str | None
+                     ) -> dict[str, Any]:
+    """Collect + verify (run_id, detector) provenance of the checkpoints being evaluated."""
+    metas = {}
+    for kind, path in (("frontend", frontend), ("detector", detector_ckpt)):
+        if not path:
+            continue
+        m = read_ckpt_meta(path, kind)
+        for key, want in (("run_id", a_run), ("detector", a_detector)):
+            if m.get(key) != want:
+                raise SystemExit(f"{kind} checkpoint {path}: {key}={m.get(key)!r} but this evaluation is "
+                                 f"{key}={want!r}; refusing to evaluate a mismatched checkpoint")
+        metas[kind] = m
+    if not metas:
+        return {}
+    m = metas.get("frontend") or metas["detector"]
+    return {"run_id": m["run_id"], "variant": m.get("variant"), "detector": m["detector"], "seed": m.get("seed"),
+            "best_epoch": m.get("best_epoch"), "val_mean_auc": m.get("val_mean_auc"),
+            "train_git_commit": m.get("git_commit"), "train_config": m.get("train_config")}
+
+
+def checkpoint_identity(detector: str, frontend: str | None, detector_ckpt: str | None,
+                        weights: str | None) -> dict[str, Any]:
+    """sha256 of every checkpoint used (base runs: detector weights path + sha)."""
+    from dcfg.detectors.registry import default_weights_path
+    wpath = detector_ckpt or weights or str(default_weights_path(detector))
+    ident: dict[str, Any] = {"detector_weights_path": str(Path(wpath).resolve()),
+                             "detector_weights_sha256": sha256_file(wpath)}
+    if frontend:
+        ident["frontend_path"] = str(Path(frontend).resolve())
+        ident["frontend_sha256"] = sha256_file(frontend)
+    return ident
+
+
+def _same_ckpts(old: dict[str, Any], new: dict[str, Any]) -> bool:
+    """Compare by hash (paths may move); a missing hash never matches."""
+    keys = ("detector_weights_sha256", "frontend_sha256")
+    return all(old.get(k) == new.get(k) for k in keys) and "detector_weights_sha256" in old
+
+
+def check_stale(out_dir: Path, run: str, conds: Sequence[EvalCondition], ident: dict[str, Any]) -> None:
+    """Existing results may be skipped only if produced by the same checkpoint(s); otherwise raise."""
+    for c in conds:
+        jp = out_dir / f"{run}__{c.name}.json"
+        if jp.exists():
+            old = json.loads(jp.read_text()).get("checkpoints", {})
+            if not _same_ckpts(old, ident):
+                raise SystemExit(f"stale result {jp}: produced by different checkpoints "
+                                 f"({ {k: v for k, v in old.items() if k.endswith('sha256')} or 'no hashes'} vs "
+                                 f"{ {k: v for k, v in ident.items() if k.endswith('sha256')} }); "
+                                 "re-run with --force to overwrite")
+
+
 def resolve_conditions(spec: str, available: dict[str, EvalCondition]) -> list[EvalCondition]:
     """'all' or a comma-separated list of condition names."""
     if spec == "all":
@@ -192,6 +264,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     from dcfg.detectors.registry import dfb_commit
 
     conds = resolve_conditions(a.conditions, load_conditions(CONDITIONS_YAML))
+    prov = train_provenance(a.run, a.detector, a.frontend, a.detector_ckpt)
+    ident = checkpoint_identity(a.detector, a.frontend, a.detector_ckpt, a.weights)
+    if not a.force:
+        check_stale(out_dir, a.run, conds, ident)
     todo = [c for c in conds if a.force or not (out_dir / f"{a.run}__{c.name}.json").exists()]
     print(f"{a.run}: {len(todo)}/{len(conds)} conditions to run", flush=True)
     if not todo:
@@ -199,14 +275,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     det = Detector(a.detector, weights_path=a.detector_ckpt or a.weights, device=device).freeze()
     front = None
-    extra: dict[str, Any] = {}
+    extra: dict[str, Any] = {"checkpoints": ident, "train": prov or None}
     if a.frontend:
         from dcfg.train.train_frontend import load_frontend
         front, meta = load_frontend(a.frontend, device)
-        extra = {"frontend": str(a.frontend), "variant": meta.get("variant"),
-                 "detector_ckpt": a.detector_ckpt or a.weights}
+        extra |= {"frontend": str(a.frontend), "variant": meta.get("variant"),
+                  "detector_ckpt": a.detector_ckpt or a.weights}
     elif a.detector_ckpt:
-        extra = {"detector_ckpt": a.detector_ckpt}
+        extra |= {"detector_ckpt": a.detector_ckpt}
     source = DFBJsonSource(a.json, a.frames_root)
     # heartbeat dir: --runs-dir/<run>, else the runner's DCFG_RUN_DIR (job id may differ from --run), else runs/<run>
     env_dir = os.environ.get("DCFG_RUN_DIR")

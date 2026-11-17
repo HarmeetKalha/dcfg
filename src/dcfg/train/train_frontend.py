@@ -18,7 +18,7 @@ Design notes
 * Sensor: trainable at ``lr_sensor`` unless ``freeze_sensor: true`` (PLAN 7.5 lists its lr).
 * UCF (augft_ucf only): trained with UCF's own DFB loss ``get_losses(...)['overall']`` on [real | fake]
   paired batches with label_spe from the FF++ manipulation type; other detectors use BCE.
-* Sampling: class-balanced 1:1 per epoch from a permutation seeded by ``seed + epoch``; fakes pooled
+* Sampling: class-balanced 1:1 per epoch from a permutation seeded by ``[seed, epoch]`` (SeedSequence); fakes pooled
   over the 4 manipulation types. Degradations (PLAN 7.2) are applied in the DataLoader workers to the
   uint8 crop with ``make_rng(seed, epoch, position_in_epoch)`` (no curriculum).
 * One ``GradScaler`` scales the FULL loss; gradients are unscaled before norm statistics.
@@ -57,6 +57,23 @@ from dcfg.models.sensor import DegradationSensor
 from dcfg.paths import REPO_ROOT, RUNS_ROOT
 from dcfg.utils.heartbeat import Heartbeat
 from dcfg.utils.seed import seed_everything
+
+#: config keys that may differ on resume (paths, workers, logging); everything else must match.
+CONFIG_RESUME_IGNORE = frozenset({"run_dir", "json", "frames_root", "sensor_weights", "detector_weights",
+                                  "conditions_yaml", "num_workers", "val_workers", "heartbeat_s", "log_every",
+                                  "wandb_project", "max_steps", "allow_config_change"})
+MAX_CONSEC_SKIPS = 50
+
+
+class NonFiniteAbort(RuntimeError):
+    """Persistent fp16 overflow / non-finite gradients: the run is diverging, abort."""
+
+
+def config_diff(old: dict[str, Any], new: dict[str, Any]) -> dict[str, tuple[Any, Any]]:
+    """Keys (outside CONFIG_RESUME_IGNORE) whose values differ between two configs."""
+    keys = (set(old) | set(new)) - CONFIG_RESUME_IGNORE
+    return {k: (old.get(k), new.get(k)) for k in sorted(keys) if old.get(k) != new.get(k)}
+
 
 VARIANTS = ("dcfg", "fixed", "nosensor", "dcfg_nolive", "augft", "dcfg_jointft")
 TRAIN_DETECTOR = ("augft", "dcfg_jointft")
@@ -184,14 +201,14 @@ def load_frontend(path: str | os.PathLike[str], device: str | torch.device = "cp
 # ----------------------------------------------------------------------------- data
 def epoch_order(labels: np.ndarray, seed: int, epoch: int, mode: str = "balanced",
                 paired_half: int | None = None) -> np.ndarray:
-    """Frame indices for one epoch, class-balanced 1:1, shuffled; deterministic in ``seed + epoch``.
+    """Frame indices for one epoch, class-balanced 1:1, shuffled; deterministic in ``(seed, epoch)``; seeds never collide across epochs.
 
     ``balanced``: all reals + as many fakes (fresh permutation per epoch, pooled over manipulations).
     ``full``: all fakes + reals re-cycled to match (each real used floor/ceil(n_fake/n_real) times,
     from fresh permutations, so repeats are spread over the epoch).
     ``paired_half=h`` (UCF native loss): every consecutive batch of 2h frames is [h reals | h fakes]
     (as DFB's pair dataset), batch order shuffled."""
-    rng = np.random.default_rng(seed + epoch)
+    rng = np.random.default_rng([int(seed), int(epoch)])
     real, fake = np.flatnonzero(labels == 0), np.flatnonzero(labels == 1)
     if len(real) == 0 or len(fake) == 0:
         raise ValueError("need both real and fake frames")
@@ -402,6 +419,12 @@ class Trainer:
         if not last.exists():
             return False
         ck = torch.load(last, map_location="cpu", weights_only=False)
+        diff = config_diff(ck.get("config", {}), self.cfg)
+        if diff:
+            if not self.cfg.get("allow_config_change"):
+                raise RuntimeError(f"config differs from the one in {last}: {diff}; "
+                                   "pass --set allow_config_change=true to resume anyway")
+            print(f"WARNING: resuming with changed config: {diff}", flush=True)
         self._load_model_state(ck["model"])
         self.opt.load_state_dict(ck["optimizer"])
         self.sched.load_state_dict(ck["scheduler"])
@@ -487,14 +510,17 @@ class Trainer:
             ld = DataLoader(ConditionDataset(self.source, recs, cond), batch_size=64, shuffle=False,
                             num_workers=int(self.cfg["val_workers"]), pin_memory=self.dev.type == "cuda")
             wsum.clear(); wn[0] = 0
-            prob = predict(fn, ld, str(self.dev))
+            prob = predict(fn, ld, str(self.dev),
+                           on_batch=lambda n, c=cond.name: self.hb.beat(self.st["step"], phase="val", cond=c, seen=n,
+                                                                        epoch=self.st["epoch"]))
             aucs[cond.name] = frame_auc([r.label for r in recs], prob)
             times[cond.name], nfr[cond.name] = time.time() - t0, len(recs)
             if wn[0]:
                 wmaps[cond.name] = (torch.stack(wsum).sum(0) / wn[0]).tolist()
-        mean_auc = float(np.nanmean(list(aucs.values())))
-        if not np.isfinite(mean_auc):
-            raise RuntimeError(f"val selection metric undefined: {aucs}")
+        bad = [k for k, a in aucs.items() if not np.isfinite(a)]
+        if bad:
+            raise RuntimeError(f"non-finite val AUC for {bad}: {aucs}")
+        mean_auc = float(np.mean(list(aucs.values())))
         self.model.train(was_training)
         return {"aucs": aucs, "mean_auc": mean_auc, "wmaps": wmaps, "times_s": times, "n_frames": nfr}
 
@@ -541,7 +567,7 @@ class Trainer:
             scale_before = self.scaler.get_scale()
             self.scaler.step(self.opt)
             self.scaler.update()
-            if self.scaler.get_scale() >= scale_before:  # an fp16-overflow skip must not advance the LR schedule
+            if self._after_scaler(scale_before, self.scaler.get_scale()):  # skipped steps do not advance the LR schedule
                 self.sched.step()
             st["step"] += 1
             st["step_in_epoch"] += 1
@@ -564,6 +590,21 @@ class Trainer:
         return True
 
     _img_s = 0.0
+    _consec_skips = 0
+
+    def _after_scaler(self, before: float, after: float) -> bool:
+        """Track fp16 overflow skips. Returns True if the optimizer step was applied; raises
+        :class:`NonFiniteAbort` if the loss scale fell below 1 or >50 consecutive steps were skipped."""
+        skipped = after < before
+        self._consec_skips = self._consec_skips + 1 if skipped else 0
+        if after < 1.0 or self._consec_skips > MAX_CONSEC_SKIPS:
+            msg = (f"persistent non-finite gradients at step {self.st['step']}: GradScaler scale {after}, "
+                   f"{self._consec_skips} consecutive skipped steps")
+            print(f"ABORT: {msg}", flush=True)
+            self._log_line("batches.log", f"# ABORT {msg}")
+            self._wandb_alert(f"{self.cfg['run_id']} non-finite abort", msg, error=True)
+            raise NonFiniteAbort(msg)
+        return not skipped
 
     def _eta(self) -> str:
         done = self.st["step"]
@@ -666,11 +707,14 @@ class Trainer:
         st, cfg = self.st, self.cfg
         best = torch.load(self.run_dir / "best.pt", map_location="cpu", weights_only=False)
         self._load_model_state(best["model"])
-        meta = {"best_epoch": st["best_epoch"], "val_mean_auc": st["best"], "git_commit": git_commit()}
+        meta = {"best_epoch": st["best_epoch"], "val_mean_auc": st["best"], "git_commit": git_commit(),
+                "detector": cfg["detector"], "run_id": cfg["run_id"], "seed": int(cfg["seed"]),
+                "train_config": dict(cfg)}
         if self.frontend is not None:
             save_frontend(self.run_dir / "frontend.pt", self.frontend, cfg, meta)
-        if self.train_det:
-            _save_atomic(self.det.model.state_dict(), self.run_dir / "detector.pt")
+        if self.train_det:  # adapter loads {"state_dict": ...}; "meta" rides along (primitives only)
+            _save_atomic({"state_dict": self.det.model.state_dict(), "meta": {**meta, "variant": cfg["variant"]}},
+                         self.run_dir / "detector.pt")
         res = {"run_id": cfg["run_id"], "truncated": False, "variant": self.variant, "epochs_run": st["epoch"],
                "stopped_early": bool(st["stopped"]), "total_time_s": time.time() - self.t_start, **meta}
         (self.run_dir / "done.json").write_text(json.dumps(res, indent=2))

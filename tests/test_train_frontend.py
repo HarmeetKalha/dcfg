@@ -35,7 +35,8 @@ class DummyDetector(nn.Module):
         self.model = nn.Sequential(nn.Conv2d(3, 4, 3, stride=4), nn.BatchNorm2d(4), nn.ReLU(),
                                    nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(4, 1))
         if weights_path:
-            self.model.load_state_dict(torch.load(weights_path, weights_only=True))
+            sd = torch.load(weights_path, weights_only=True)
+            self.model.load_state_dict(sd.get("state_dict", sd))
         self._frozen = False
         self.to(device)
         self.eval()
@@ -86,7 +87,7 @@ def data(tmp_path, monkeypatch):
 
 def cfg_for(data, tmp_path, variant="dcfg", **kw):
     cfg = tf.load_config(REPO_ROOT / "configs" / "train" / "base.yaml")
-    cfg.update(run_id=f"t_{variant}", variant=variant, batch_size=4, num_workers=0, val_workers=0,
+    cfg.update(run_id=f"t_{variant}", variant=variant, detector="dummy", batch_size=4, num_workers=0, val_workers=0,
                max_epochs=2, ckpt_every_steps=5, frozen_check_every=1, log_every=3, wandb_project="dcfg-test",
                run_dir=str(tmp_path / f"run_{variant}"), **data)
     cfg.update(kw)
@@ -265,6 +266,44 @@ def test_augft_ucf_native_loss(data, tmp_path, monkeypatch):
     assert len(spe) == 3
 
 
+def test_epoch_order_seeds_never_collide():
+    labels = np.array([0] * 10 + [1] * 40)
+    orders = {(sd, e): tf.epoch_order(labels, sd, e).tobytes() for sd in (42, 43, 44) for e in range(4)}
+    assert len(set(orders.values())) == 12  # includes (42, e+1) != (43, e)
+
+
+def test_scaler_abort_guard(data, tmp_path):
+    t = tf.Trainer(cfg_for(data, tmp_path, "fixed"))
+    assert t._after_scaler(65536.0, 65536.0) is True
+    assert t._after_scaler(65536.0, 32768.0) is False  # one skip is fine
+    assert t._after_scaler(32768.0, 32768.0) is True and t._consec_skips == 0
+    with pytest.raises(tf.NonFiniteAbort, match="scale"):
+        t._after_scaler(1.0, 0.5)
+    t2 = tf.Trainer(cfg_for(data, tmp_path, "fixed", run_dir=str(tmp_path / "x")))
+    with pytest.raises(tf.NonFiniteAbort, match="consecutive"):
+        for _ in range(51):
+            t2._after_scaler(1e9, 1e8)
+
+
+def test_resume_config_mismatch(data, tmp_path):
+    cfg = cfg_for(data, tmp_path, "fixed", max_steps=3)
+    tf.Trainer(cfg).train()
+    (tmp_path / "run_fixed" / "done.json").unlink()
+    with pytest.raises(RuntimeError, match="allow_config_change"):
+        tf.Trainer({**cfg, "lr_gate": 5e-4}).train()
+    # path/worker-only changes are fine; explicit override is honoured
+    tf.Trainer({**cfg, "num_workers": 0, "json": cfg["json"]}).train()
+    (tmp_path / "run_fixed" / "done.json").unlink()
+    tf.Trainer({**cfg, "lr_gate": 5e-4, "allow_config_change": True}).train()
+
+
+def test_val_nonfinite_auc_raises(data, tmp_path, monkeypatch):
+    t = tf.Trainer(cfg_for(data, tmp_path, "fixed"))
+    monkeypatch.setattr(tf, "frame_auc", lambda *a: float("nan"))
+    with pytest.raises(RuntimeError, match="non-finite val AUC"):
+        t.validate()
+
+
 def test_epoch_order_balanced_and_deterministic():
     labels = np.array([0] * 10 + [1] * 40)
     o = tf.epoch_order(labels, 42, 3, "balanced")
@@ -280,15 +319,40 @@ def test_evaluate_frontend_writes_json(data, tmp_path, monkeypatch):
     t = tf.Trainer(cfg_for(data, tmp_path, "dcfg_jointft"))
     t.train()
     rd, out = tmp_path / "run_dcfg_jointft", tmp_path / "results"
-    rc = ev.main(["--run", "evt", "--detector", "dummy", "--frontend", str(rd / "frontend.pt"),
+    rc = ev.main(["--run", "t_dcfg_jointft", "--detector", "dummy", "--frontend", str(rd / "frontend.pt"),
                   "--detector-ckpt", str(rd / "detector.pt"), "--conditions", "clean,jpeg_q50,c40",
                   "--json", data["json"], "--frames-root", data["frames_root"], "--out-dir", str(out),
                   "--runs-dir", str(tmp_path / "runs"), "--workers", "0", "--n-boot", "20"])
     assert rc == 0
-    res = json.loads((out / "evt__clean.json").read_text())
+    n = "t_dcfg_jointft"
+    res = json.loads((out / f"{n}__clean.json").read_text())
     assert res["variant"] == "dcfg_jointft" and "frontend" in res and 0 <= res["frame_auc"] <= 1
-    assert (out / "evt__c40.json").exists() and (out / "evt__jpeg_q50.json").exists()
-    assert not (REPO_ROOT / "results" / "raw" / "evt__clean.json").exists()
+    assert (out / f"{n}__c40.json").exists() and (out / f"{n}__jpeg_q50.json").exists()
+    assert not (REPO_ROOT / "results" / "raw" / f"{n}__clean.json").exists()
+    tr = res["train"]
+    assert tr["run_id"] == n and tr["detector"] == "dummy" and tr["seed"] == 42 and tr["best_epoch"] in (0, 1)
+    assert tr["train_config"]["variant"] == "dcfg_jointft" and tr["train_git_commit"] and "val_mean_auc" in tr
+    assert res["checkpoints"]["frontend_sha256"] == ev.sha256_file(rd / "frontend.pt")
+    assert res["checkpoints"]["detector_weights_sha256"] == ev.sha256_file(rd / "detector.pt")
+    # guards: wrong run / detector refused
+    base = ["--detector", "dummy", "--frontend", str(rd / "frontend.pt"), "--detector-ckpt", str(rd / "detector.pt"),
+            "--conditions", "clean", "--json", data["json"], "--frames-root", data["frames_root"],
+            "--out-dir", str(out), "--runs-dir", str(tmp_path / "runs"), "--workers", "0", "--n-boot", "20"]
+    with pytest.raises(SystemExit, match="run_id"):
+        ev.main(["--run", "other", *base])
+    with pytest.raises(SystemExit, match="detector"):
+        ev.main(["--run", n, *(["--detector", "xception"] + base[2:])])
+    # unchanged checkpoints: skipped; changed checkpoint: stale error unless --force
+    assert ev.main(["--run", n, *base]) == 0
+    ck = torch.load(rd / "frontend.pt", weights_only=False)
+    ck["state_dict"] = {k: v + 0 for k, v in ck["state_dict"].items()}
+    ck["note"] = "changed"
+    torch.save(ck, rd / "frontend.pt")
+    with pytest.raises(SystemExit, match="stale"):
+        ev.main(["--run", n, *base])
+    assert ev.main(["--run", n, *base, "--force"]) == 0
+    assert json.loads((out / f"{n}__clean.json").read_text())["checkpoints"]["frontend_sha256"] \
+        == ev.sha256_file(rd / "frontend.pt")
 
 
 def test_main_cli_and_config_overrides(data, tmp_path):
