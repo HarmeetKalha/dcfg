@@ -35,3 +35,4 @@ base_xception | .venv/bin/python -m dcfg.eval.evaluate --run base_xception --det
 base_efficientnetb4 | .venv/bin/python -m dcfg.eval.evaluate --run base_efficientnetb4 --detector efficientnetb4 --conditions all --split test #hb=30
 base_f3net | .venv/bin/python -m dcfg.eval.evaluate --run base_f3net --detector f3net --conditions all --split test #hb=30
 base_ucf | .venv/bin/python -m dcfg.eval.evaluate --run base_ucf --detector ucf --conditions all --split test #hb=30
+phase8_smoke | .venv/bin/python ops/jobs/phase8_smoke.py #hb=30

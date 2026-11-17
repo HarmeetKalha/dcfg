@@ -57,7 +57,8 @@ Order: A + C + E in parallel now, then B, D, F.
 - GATE 4 reproduction (clean c23 test, 700 videos / 22,388 frames): frame AUC xception 0.9761 (pub 0.9637), effb4 0.9702 (0.9567), f3net 0.9782 (0.9635), ucf 0.9813 (0.9705): all within +0.02 (consistently +0.011..+0.015 higher). Video AUC 0.987-0.993. GATE 4 APPROVED by user 2026-11-17.
 - GATE 6 data: sensor_embedding kNN condition accuracy 0.726 (chance 0.167), silhouette -0.01. t-SNE: noise clearly separated; blur/resize/mixed apart from clean; jpeg_q30 overlaps clean (sensor ~blind to JPEG). GATE 6 APPROVED by user 2026-11-17.
 - freq_study done (results/raw/freq_study.npz, results/figures/freq_*.png).
-- RUNNING (started ~09:20 UTC 11-17): base_<det> on all 24 test conditions (Phase 5.3).
+- RUNNING (started ~09:40 UTC 11-17): base_<det> on all 23 test conditions (Phase 5.3), ETA ~12:00 UTC; then phase8_smoke (8.2 smoke+resume, 8.3 batch sizes/timing/ETA -> results/qa/phase8_{smoke,eta}.md, phase8_batch.yaml), ETA a few hours.
+- Next after queue: results-analyst baseline curves -> GATE 5; run ops/jobs/gen_matrix.py (configs + printed queue lines) + reviewer pre-launch review -> GATE 8 (user approves ETA before queueing the matrix).
 
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.
