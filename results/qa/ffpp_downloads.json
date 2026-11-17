@@ -1,0 +1,127 @@
+{
+  "raw": "/home/harmeet/data/ffpp_raw",
+  "deep": false,
+  "all_ok": true,
+  "folders": {
+    "original_sequences/youtube/c23": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 1936585266,
+      "mean_bytes": 1936585,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "original_sequences/youtube/c40": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 261136037,
+      "mean_bytes": 261136,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "manipulated_sequences/Deepfakes/c23": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 1992801584,
+      "mean_bytes": 1992801,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "manipulated_sequences/Deepfakes/c40": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 264135986,
+      "mean_bytes": 264135,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "manipulated_sequences/Face2Face/c23": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 1946827903,
+      "mean_bytes": 1946827,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "manipulated_sequences/Face2Face/c40": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 259153852,
+      "mean_bytes": 259153,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "manipulated_sequences/FaceSwap/c23": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 1639456740,
+      "mean_bytes": 1639456,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "manipulated_sequences/FaceSwap/c40": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 214589540,
+      "mean_bytes": 214589,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "manipulated_sequences/NeuralTextures/c23": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 1525872246,
+      "mean_bytes": 1525872,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    },
+    "manipulated_sequences/NeuralTextures/c40": {
+      "exists": true,
+      "n_mp4": 1000,
+      "expected": 1000,
+      "ok_count": true,
+      "total_bytes": 206119262,
+      "mean_bytes": 206119,
+      "stray_tmp": [],
+      "zero_byte": [],
+      "unreadable": [],
+      "deep": false
+    }
+  }
+}

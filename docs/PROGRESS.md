@@ -1,6 +1,6 @@
 # PROGRESS
 
-**Current phase:** 2 — Data acquisition (in progress). GATE 1 PASSED 2026-11-16.
+**Current phase:** 3/4 — GATE 2 passed; GATE 3 awaiting user approval; Phase 4 reproduction running. GATE 1 PASSED 2026-11-16, GATE 7 approved 2026-11-16.
 **Last updated:** 2026-11-16
 
 ## Done
@@ -47,6 +47,12 @@ Order: A + C + E in parallel now, then B, D, F.
 - Gate-prep scripts done (126 tests pass): ops/jobs/verify_ffpp_downloads.py (GATE 2), analysis/preprocess_qa.py (GATE 3 counts + qa_crops.png), analysis/freq_study.py (5.2), analysis/sensor_embedding.py (6.4), analysis/overhead.py (T4 measured -> results/raw/overhead.json: dcfg front-end +0.46 ms/img at bs32, 394k params), ops/jobs/make_eval_queue.py (prints base_<det>, preprocess_qa, freq_study, sensor_embedding queue lines).
 - GATE 4 reference AUCs recorded in DECISIONS (DFB paper Table 3).
 - Idle until user says "continue" (no new work started).
+
+- 2026-11-17: all 16 queue jobs DONE (downloads 19:27, preprocessing c23 2h12m + c40 20m, rearrange, sensor_live_p10) before PC restart. WSL processors fixed to 6.
+- GATE 2 PASSED (verify_ffpp_downloads): 1000 videos x 5 types x {c23,c40}, 11.6 GB, no tmp/0-byte files.
+- GATE 3 data: results/qa/preprocess_counts.md + results/figures/qa_crops.png sent to user; ~32 frames/video, failed-detection <1%; zero-face train videos 281 (+ 3 fakes) excluded. Awaiting user approval.
+- Sensor protocol10 (10 random 80/20 splits, 66 epochs): median SRCC/PLCC center 0.657/0.679, 5-crop 0.659/0.674.
+- RUNNING (started 09:03 UTC 11-17): repro_{xception,efficientnetb4,f3net,ucf} (clean c23 test -> results/raw/base_<det>__clean.json), then sensor_embedding, freq_study. Each eval a few minutes.
 
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.

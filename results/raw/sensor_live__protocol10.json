@@ -1,0 +1,206 @@
+{
+  "job_id": "sensor_live_p10",
+  "epochs": 66,
+  "n_splits": 10,
+  "median": {
+    "center": {
+      "srcc": 0.6565075685617984,
+      "plcc": 0.679140031337738
+    },
+    "five_crop": {
+      "srcc": 0.6587395017131807,
+      "plcc": 0.6735179424285889
+    }
+  },
+  "per_split": [
+    {
+      "split_seed": 0,
+      "test": {
+        "center": {
+          "srcc": 0.7259177111182437,
+          "plcc": 0.7524228096008301
+        },
+        "five_crop": {
+          "srcc": 0.7198028403445006,
+          "plcc": 0.7361166477203369
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 55.84178765445038,
+      "mos_std": 20.032457905954185
+    },
+    {
+      "split_seed": 1,
+      "test": {
+        "center": {
+          "srcc": 0.649245899874877,
+          "plcc": 0.6698768734931946
+        },
+        "five_crop": {
+          "srcc": 0.6471211192241234,
+          "plcc": 0.6726980209350586
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 54.977656558274695,
+      "mos_std": 20.703336442681653
+    },
+    {
+      "split_seed": 2,
+      "test": {
+        "center": {
+          "srcc": 0.6763145098205035,
+          "plcc": 0.6815282106399536
+        },
+        "five_crop": {
+          "srcc": 0.6709309633684355,
+          "plcc": 0.6858910918235779
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 55.50741360713022,
+      "mos_std": 20.179680322053397
+    },
+    {
+      "split_seed": 3,
+      "test": {
+        "center": {
+          "srcc": 0.6785701500921199,
+          "plcc": 0.6767518520355225
+        },
+        "five_crop": {
+          "srcc": 0.6701488668194376,
+          "plcc": 0.6743378639221191
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 55.272663988537865,
+      "mos_std": 20.553239776391074
+    },
+    {
+      "split_seed": 4,
+      "test": {
+        "center": {
+          "srcc": 0.6656098822000848,
+          "plcc": 0.7035877704620361
+        },
+        "five_crop": {
+          "srcc": 0.6517694973370568,
+          "plcc": 0.6864651441574097
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 55.41982051692381,
+      "mos_std": 20.0457858026568
+    },
+    {
+      "split_seed": 5,
+      "test": {
+        "center": {
+          "srcc": 0.6491209693074425,
+          "plcc": 0.6988755464553833
+        },
+        "five_crop": {
+          "srcc": 0.6685236474344065,
+          "plcc": 0.6969269514083862
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 55.58891283003921,
+      "mos_std": 20.078437295619338
+    },
+    {
+      "split_seed": 6,
+      "test": {
+        "center": {
+          "srcc": 0.6614311136289622,
+          "plcc": 0.6816266775131226
+        },
+        "five_crop": {
+          "srcc": 0.6657095060893048,
+          "plcc": 0.6712672710418701
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 55.519319473920156,
+      "mos_std": 20.110607603725114
+    },
+    {
+      "split_seed": 7,
+      "test": {
+        "center": {
+          "srcc": 0.6182275619895864,
+          "plcc": 0.6361902356147766
+        },
+        "five_crop": {
+          "srcc": 0.6267843448544942,
+          "plcc": 0.6414209008216858
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 55.27526077287289,
+      "mos_std": 20.281270606726927
+    },
+    {
+      "split_seed": 8,
+      "test": {
+        "center": {
+          "srcc": 0.6515840234946345,
+          "plcc": 0.6456128358840942
+        },
+        "five_crop": {
+          "srcc": 0.6150975707731663,
+          "plcc": 0.6434462070465088
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 55.88178708600198,
+      "mos_std": 20.214567945860033
+    },
+    {
+      "split_seed": 9,
+      "test": {
+        "center": {
+          "srcc": 0.6276011985646438,
+          "plcc": 0.6214888691902161
+        },
+        "five_crop": {
+          "srcc": 0.624639383112078,
+          "plcc": 0.6364925503730774
+        }
+      },
+      "n_train": 930,
+      "n_test": 232,
+      "mos_mean": 56.03247137385073,
+      "mos_std": 20.075828980764893
+    }
+  ],
+  "git_commit": "c5f3ce6f47ac5ba793c83492fe8caebc583e0b5a",
+  "config": {
+    "seed": 42,
+    "live_root": "~/data/live/ChallengeDB_release",
+    "split_path": "~/data/live/split_seed42.json",
+    "subset": null,
+    "batch_size": 32,
+    "max_epochs": 200,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "warmup_epochs": 1,
+    "patience": 20,
+    "num_workers": 6,
+    "amp": true,
+    "weights_path": "~/data/weights/sensor_live.pt",
+    "results_dir": "results/raw",
+    "heartbeat_s": 60,
+    "wandb_project": "dcfg"
+  }
+}

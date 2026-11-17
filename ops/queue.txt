@@ -25,3 +25,9 @@ dfb_pre_c23 | bash ops/jobs/dfb_preprocess.sh c23 6 #noheartbeat
 dfb_pre_c40 | bash ops/jobs/dfb_preprocess.sh c40 6 #noheartbeat
 dfb_rearrange | bash ops/jobs/dfb_rearrange.sh #noheartbeat
 sensor_live_p10 | bash ops/jobs/train_sensor.sh --protocol10 #hb=30
+repro_xception | .venv/bin/python -m dcfg.eval.evaluate --run base_xception --detector xception --conditions clean --split test #hb=30
+repro_efficientnetb4 | .venv/bin/python -m dcfg.eval.evaluate --run base_efficientnetb4 --detector efficientnetb4 --conditions clean --split test #hb=30
+repro_f3net | .venv/bin/python -m dcfg.eval.evaluate --run base_f3net --detector f3net --conditions clean --split test #hb=30
+repro_ucf | .venv/bin/python -m dcfg.eval.evaluate --run base_ucf --detector ucf --conditions clean --split test #hb=30
+sensor_embedding | .venv/bin/python -m dcfg.analysis.sensor_embedding #noheartbeat
+freq_study | .venv/bin/python -m dcfg.analysis.freq_study #noheartbeat
