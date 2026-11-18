@@ -1,0 +1,117 @@
+{
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "warmup": 20,
+  "iters": 100,
+  "statistic": "median",
+  "torch": "2.11.0+cu128",
+  "timestamp": "2026-11-18T15:35:40.647751+00:00",
+  "pipelines": {
+    "base": {
+      "batch1": {
+        "ms_per_batch": 3.784592032432556,
+        "ms_per_image": 3.784592032432556,
+        "added_ms_per_image": 0.0
+      },
+      "batch32": {
+        "ms_per_batch": 84.70000076293945,
+        "ms_per_image": 2.646875023841858,
+        "added_ms_per_image": 0.0
+      }
+    },
+    "fixed": {
+      "batch1": {
+        "ms_per_batch": 4.294080018997192,
+        "ms_per_image": 4.294080018997192,
+        "added_ms_per_image": 0.5094879865646362
+      },
+      "batch32": {
+        "ms_per_batch": 87.89299011230469,
+        "ms_per_image": 2.7466559410095215,
+        "added_ms_per_image": 0.09978091716766357
+      }
+    },
+    "dcfg": {
+      "batch1": {
+        "ms_per_batch": 5.139456033706665,
+        "ms_per_image": 5.139456033706665,
+        "added_ms_per_image": 1.3548640012741089
+      },
+      "batch32": {
+        "ms_per_batch": 99.53945541381836,
+        "ms_per_image": 3.1106079816818237,
+        "added_ms_per_image": 0.4637329578399658
+      }
+    },
+    "film": {
+      "batch1": {
+        "ms_per_batch": 5.287231922149658,
+        "ms_per_image": 5.287231922149658,
+        "added_ms_per_image": 1.502639889717102
+      },
+      "batch32": {
+        "ms_per_batch": 100.98236846923828,
+        "ms_per_image": 3.1556990146636963,
+        "added_ms_per_image": 0.5088239908218384
+      }
+    },
+    "filmlite": {
+      "batch1": {
+        "ms_per_batch": 5.269311904907227,
+        "ms_per_image": 5.269311904907227,
+        "added_ms_per_image": 1.4847198724746704
+      },
+      "batch32": {
+        "ms_per_batch": 100.43896102905273,
+        "ms_per_image": 3.138717532157898,
+        "added_ms_per_image": 0.49184250831604004
+      }
+    }
+  },
+  "note": "inference, fp32 detector, no_grad, eval mode; added = pipeline minus plain detector. dcfgcons/jointft inference == dcfg (+ detector fine-tune for jointft: same cost), augft == base.",
+  "trainable_params": {
+    "base": {
+      "trainable": 0,
+      "detector_trained": false,
+      "pct_of_xception": 0.0
+    },
+    "fixed": {
+      "trainable": 192,
+      "detector_trained": false,
+      "pct_of_xception": 0.0008782698742180311
+    },
+    "augft": {
+      "trainable": 21861162,
+      "detector_trained": true,
+      "pct_of_xception": 100.0
+    },
+    "dcfg": {
+      "trainable": 394369,
+      "detector_trained": false,
+      "pct_of_xception": 1.8039708959660974
+    },
+    "jointft": {
+      "trainable": 22255531,
+      "detector_trained": true,
+      "pct_of_xception": 101.8039708959661
+    },
+    "dcfgcons": {
+      "trainable": 394369,
+      "detector_trained": false,
+      "pct_of_xception": 1.8039708959660974
+    },
+    "dcfgfilm": {
+      "trainable": 2602641,
+      "detector_trained": false,
+      "pct_of_xception": 11.905318665128597
+    },
+    "dcfgfilmlite": {
+      "trainable": 763505,
+      "detector_trained": false,
+      "pct_of_xception": 3.4925179183064468
+    },
+    "_xception_params": {
+      "trainable": 21861162
+    }
+  }
+}
