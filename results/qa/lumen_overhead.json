@@ -1,0 +1,97 @@
+{
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "warmup": 20,
+  "iters": 100,
+  "statistic": "median",
+  "torch": "2.11.0+cu128",
+  "timestamp": "2026-11-18T20:37:26.614536+00:00",
+  "detectors": {
+    "xception": {
+      "detector_params": 21861162,
+      "sites": {
+        "entry": {
+          "channels": 728
+        },
+        "exit": {
+          "channels": 2048
+        }
+      },
+      "film_hidden": 64,
+      "params_gate": 132160,
+      "params_sensor": 262209,
+      "params_film": 369136,
+      "added_trainable_params": 763505,
+      "added_pct_of_detector": 3.4925179183064468,
+      "batch1": {
+        "plain_ms_per_image": 3.892240047454834,
+        "lumen_ms_per_image": 5.199039936065674,
+        "added_ms_per_image": 1.3067998886108398
+      },
+      "batch32": {
+        "plain_ms_per_image": 2.6323680877685547,
+        "lumen_ms_per_image": 3.1049280166625977,
+        "added_ms_per_image": 0.47255992889404297
+      }
+    },
+    "efficientnetb4": {
+      "detector_params": 17552202,
+      "sites": {
+        "entry": {
+          "channels": 56
+        },
+        "exit": {
+          "channels": 1792
+        }
+      },
+      "film_hidden": 56,
+      "params_gate": 132160,
+      "params_sensor": 262209,
+      "params_film": 217896,
+      "added_trainable_params": 612265,
+      "added_pct_of_detector": 3.4882517874395473,
+      "batch1": {
+        "plain_ms_per_image": 12.72929573059082,
+        "lumen_ms_per_image": 14.278815746307373,
+        "added_ms_per_image": 1.5495200157165527
+      },
+      "batch32": {
+        "plain_ms_per_image": 3.8867039680480957,
+        "lumen_ms_per_image": 4.355167865753174,
+        "added_ms_per_image": 0.4684638977050781
+      }
+    },
+    "f3net": {
+      "detector_params": 22519114,
+      "sites": {
+        "entry": {
+          "channels": 728
+        },
+        "exit": {
+          "channels": 2048
+        }
+      },
+      "film_hidden": 72,
+      "params_gate": 132160,
+      "params_sensor": 262209,
+      "params_film": 414584,
+      "added_trainable_params": 808953,
+      "added_pct_of_detector": 3.5922949721734168,
+      "batch1": {
+        "plain_ms_per_image": 4.599103927612305,
+        "lumen_ms_per_image": 6.006192207336426,
+        "added_ms_per_image": 1.407088279724121
+      },
+      "batch32": {
+        "plain_ms_per_image": 2.8208614587783813,
+        "lumen_ms_per_image": 3.291724443435669,
+        "added_ms_per_image": 0.4708629846572876
+      }
+    },
+    "ucf": {
+      "skipped": "FiLM sites are not defined for 'ucf'",
+      "detector_params": 46838430
+    }
+  },
+  "note": "inference, fp32 detector, no_grad, eval mode; sensor CNN fp16 autocast as in eval; added = LUMEN pipeline minus the plain detector (front-end + FiLM MLP + hooks)."
+}

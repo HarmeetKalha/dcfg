@@ -228,10 +228,11 @@ def test_gradscaler_used(data, tmp_path, monkeypatch):
 
 
 def test_frozen_sensor_ablation_config_and_training(data, tmp_path):
-    cfg = tf.load_config(REPO_ROOT / "configs" / "train" / "dcfg_frozensensor_xception.yaml")
-    base = tf.load_config(REPO_ROOT / "configs" / "train" / "dcfg_xception.yaml")
+    cfg = tf.load_config(REPO_ROOT / "configs" / "train" / "lumen_frozensensor_xception.yaml")
+    base = tf.load_config(REPO_ROOT / "configs" / "train" / "lumen_xception.yaml")
     assert {k: (cfg[k], base[k]) for k in cfg if cfg[k] != base[k]} == {
-        "run_id": ("dcfg_frozensensor_xception", "dcfg_xception"), "freeze_sensor": (True, False)}
+        "run_id": ("lumen_frozensensor_xception", "lumen_xception"), "variant": ("lumen_frozensensor", "lumen"),
+        "freeze_sensor": (True, False)}
     t = tf.Trainer(cfg_for(data, tmp_path, "dcfg", freeze_sensor=True, max_steps=6))
     s0 = {k: v.clone() for k, v in t.frontend.sensor.state_dict().items()}
     g0 = {k: v.clone() for k, v in t.frontend.gate.state_dict().items()}

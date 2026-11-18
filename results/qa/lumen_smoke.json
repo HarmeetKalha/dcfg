@@ -1,0 +1,193 @@
+{
+ "root": "/tmp/claude-1000/lumen_smoke",
+ "smokes": [
+  {
+   "name": "lumen_xception",
+   "detector": "xception",
+   "variant": "lumen",
+   "rc": 0,
+   "steps": 300,
+   "loss": {
+    "first": 0.69299,
+    "last": 0.57046,
+    "decreased": true,
+    "windows": 6
+   },
+   "ckpt_written": true,
+   "val_mean_auc": 0.9015796165884195,
+   "val_frames": {
+    "clean": 2017,
+    "jpeg_q50": 2017,
+    "jpeg_q30": 2017,
+    "blur_s2": 2017,
+    "noise_s10": 2017,
+    "mixed_heavy": 2017
+   },
+   "img_s_steady": 177.04000000000002,
+   "peak_vram_mb_allocated": 3997.0,
+   "scaler_scale_min": 65536.0,
+   "skipped_steps": 0,
+   "nonfinite_grad_windows": 0,
+   "aborted": false,
+   "wall_s": 94.5,
+   "tail": "",
+   "pass": true
+  },
+  {
+   "name": "lumen_efficientnetb4",
+   "detector": "efficientnetb4",
+   "variant": "lumen",
+   "rc": 0,
+   "steps": 300,
+   "loss": {
+    "first": 0.75983,
+    "last": 0.58011,
+    "decreased": true,
+    "windows": 6
+   },
+   "ckpt_written": true,
+   "val_mean_auc": 0.8559237748350004,
+   "val_frames": {
+    "clean": 2017,
+    "jpeg_q50": 2017,
+    "jpeg_q30": 2017,
+    "blur_s2": 2017,
+    "noise_s10": 2017,
+    "mixed_heavy": 2017
+   },
+   "img_s_steady": 105.06000000000002,
+   "peak_vram_mb_allocated": 5787.0,
+   "scaler_scale_min": 65536.0,
+   "skipped_steps": 0,
+   "nonfinite_grad_windows": 0,
+   "aborted": false,
+   "wall_s": 145.3,
+   "tail": "",
+   "pass": true
+  },
+  {
+   "name": "lumen_f3net",
+   "detector": "f3net",
+   "variant": "lumen",
+   "rc": 0,
+   "steps": 300,
+   "loss": {
+    "first": 0.67768,
+    "last": 0.54601,
+    "decreased": true,
+    "windows": 6
+   },
+   "ckpt_written": true,
+   "val_mean_auc": 0.9099975760359257,
+   "val_frames": {
+    "clean": 2017,
+    "jpeg_q50": 2017,
+    "jpeg_q30": 2017,
+    "blur_s2": 2017,
+    "noise_s10": 2017,
+    "mixed_heavy": 2017
+   },
+   "img_s_steady": 160.58,
+   "peak_vram_mb_allocated": 4039.0,
+   "scaler_scale_min": 32768.0,
+   "skipped_steps": 1,
+   "nonfinite_grad_windows": 1,
+   "aborted": false,
+   "wall_s": 96.6,
+   "tail": "",
+   "pass": true
+  },
+  {
+   "name": "bnft_xception",
+   "detector": "xception",
+   "variant": "bnft",
+   "rc": 0,
+   "steps": 100,
+   "loss": {
+    "first": 0.85832,
+    "last": 0.60327,
+    "decreased": true,
+    "windows": 4
+   },
+   "ckpt_written": true,
+   "val_mean_auc": 0.9091002840715792,
+   "val_frames": {
+    "clean": 2017,
+    "jpeg_q50": 2017,
+    "jpeg_q30": 2017,
+    "blur_s2": 2017,
+    "noise_s10": 2017,
+    "mixed_heavy": 2017
+   },
+   "img_s_steady": 321.06666666666666,
+   "peak_vram_mb_allocated": 3076.0,
+   "scaler_scale_min": 65536.0,
+   "skipped_steps": 0,
+   "nonfinite_grad_windows": 0,
+   "aborted": false,
+   "wall_s": 47.4,
+   "tail": "",
+   "pass": true
+  },
+  {
+   "name": "lumen_nocons_xception",
+   "detector": "xception",
+   "variant": "lumen_nocons",
+   "rc": 0,
+   "steps": 100,
+   "loss": {
+    "first": 0.46278,
+    "last": 0.35033,
+    "decreased": true,
+    "windows": 4
+   },
+   "ckpt_written": true,
+   "val_mean_auc": 0.9087065228022726,
+   "val_frames": {
+    "clean": 2017,
+    "jpeg_q50": 2017,
+    "jpeg_q30": 2017,
+    "blur_s2": 2017,
+    "noise_s10": 2017,
+    "mixed_heavy": 2017
+   },
+   "img_s_steady": 252.9,
+   "peak_vram_mb_allocated": 3979.0,
+   "scaler_scale_min": 65536.0,
+   "skipped_steps": 0,
+   "nonfinite_grad_windows": 0,
+   "aborted": false,
+   "wall_s": 53.0,
+   "tail": "",
+   "pass": true
+  }
+ ],
+ "resume": {
+  "killed_at_lines": 150,
+  "ok": true,
+  "n_resumes": 1,
+  "resume_markers": [
+   {
+    "epoch": 0,
+    "step_in_epoch": 100,
+    "step": 100
+   }
+  ],
+  "steps_logged": 300,
+  "last_step": 299,
+  "missing_steps": [],
+  "hash_conflicts": [],
+  "ref_mismatches": [],
+  "repeated_batch_hashes": 0,
+  "counter_continues": true,
+  "reexecuted_steps": [
+   100,
+   149
+  ],
+  "pass": true
+ },
+ "bnft_params": 55552,
+ "ucf_note": "its FiLM sites are ambiguous (see docs/DECISIONS.md); stopped before implementing.",
+ "total_wall_min": 8.810355091094971,
+ "pass": true
+}

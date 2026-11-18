@@ -1,0 +1,289 @@
+{
+ "rows": [
+  {
+   "run_id": "lumen_xception",
+   "group": 1,
+   "detector": "xception",
+   "variant": "lumen",
+   "epoch_min": 22.2,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 690.8992424242424,
+   "likely_min": 357.8992424242424
+  },
+  {
+   "run_id": "fixed_xception",
+   "group": 1,
+   "detector": "xception",
+   "variant": "fixed",
+   "epoch_min": 14.0,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 444.8992424242424,
+   "likely_min": 234.89924242424243
+  },
+  {
+   "run_id": "augft_xception",
+   "group": 1,
+   "detector": "xception",
+   "variant": "augft",
+   "epoch_min": 17.8,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 558.8992424242424,
+   "likely_min": 291.8992424242424
+  },
+  {
+   "run_id": "lumen_efficientnetb4",
+   "group": 1,
+   "detector": "efficientnetb4",
+   "variant": "lumen",
+   "epoch_min": 37.409937178754994,
+   "how": "pilot x img/s ratio",
+   "eval_min": 36.765151515151516,
+   "worst_min": 1159.0632668778014,
+   "likely_min": 597.9142091964765
+  },
+  {
+   "run_id": "fixed_efficientnetb4",
+   "group": 1,
+   "detector": "efficientnetb4",
+   "variant": "fixed",
+   "epoch_min": 29.25827160493827,
+   "how": "pilot x img/s ratio",
+   "eval_min": 36.765151515151516,
+   "worst_min": 914.5132996632996,
+   "likely_min": 475.63922558922553
+  },
+  {
+   "run_id": "augft_efficientnetb4",
+   "group": 1,
+   "detector": "efficientnetb4",
+   "variant": "augft",
+   "epoch_min": 29.371992672501527,
+   "how": "pilot x img/s ratio",
+   "eval_min": 36.765151515151516,
+   "worst_min": 917.9249316901974,
+   "likely_min": 477.3450416026744
+  },
+  {
+   "run_id": "lumen_f3net",
+   "group": 1,
+   "detector": "f3net",
+   "variant": "lumen",
+   "epoch_min": 24.47557603686636,
+   "how": "pilot x img/s ratio",
+   "eval_min": 26.781060606060603,
+   "worst_min": 761.0483417120514,
+   "likely_min": 393.914701159056
+  },
+  {
+   "run_id": "fixed_f3net",
+   "group": 1,
+   "detector": "f3net",
+   "variant": "fixed",
+   "epoch_min": 16.543559195830227,
+   "how": "pilot x img/s ratio",
+   "eval_min": 26.781060606060603,
+   "worst_min": 523.0878364809674,
+   "likely_min": 274.934448543514
+  },
+  {
+   "run_id": "augft_f3net",
+   "group": 1,
+   "detector": "f3net",
+   "variant": "augft",
+   "epoch_min": 19.721825884925515,
+   "how": "pilot x img/s ratio",
+   "eval_min": 26.781060606060603,
+   "worst_min": 618.435837153826,
+   "likely_min": 322.6084488799433
+  },
+  {
+   "run_id": "lumen_ucf",
+   "group": 1,
+   "detector": "ucf",
+   "variant": "lumen",
+   "epoch_min": 29.076076409945422,
+   "how": "ASSUMPTION: pilot lumen x phase-8 dcfg ratio (no lumen smoke)",
+   "eval_min": 49.03181818181818,
+   "worst_min": 921.3141104801808,
+   "likely_min": 485.17296433099955
+  },
+  {
+   "run_id": "fixed_ucf",
+   "group": 1,
+   "detector": "ucf",
+   "variant": "fixed",
+   "epoch_min": 21.886959734022902,
+   "how": "pilot x img/s ratio",
+   "eval_min": 49.03181818181818,
+   "worst_min": 705.6406102025052,
+   "likely_min": 377.3362141921617
+  },
+  {
+   "run_id": "augft_ucf",
+   "group": 1,
+   "detector": "ucf",
+   "variant": "augft",
+   "epoch_min": 51.74062387952671,
+   "how": "pilot x img/s ratio",
+   "eval_min": 49.03181818181818,
+   "worst_min": 1601.2505345676193,
+   "likely_min": 825.1411763747187
+  },
+  {
+   "run_id": "jointft_xception",
+   "group": 2,
+   "detector": "xception",
+   "variant": "dcfg_jointft",
+   "epoch_min": 22.9,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 711.8992424242424,
+   "likely_min": 368.3992424242424
+  },
+  {
+   "run_id": "bnft_xception",
+   "group": 2,
+   "detector": "xception",
+   "variant": "bnft",
+   "epoch_min": 11.236342400332227,
+   "how": "pilot augft x smoke ratio bnft",
+   "eval_min": 24.899242424242424,
+   "worst_min": 361.9895144342092,
+   "likely_min": 193.44437842922582
+  },
+  {
+   "run_id": "dcfg_xception",
+   "group": 3,
+   "detector": "xception",
+   "variant": "dcfg",
+   "epoch_min": 18.8,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 588.8992424242424,
+   "likely_min": 306.8992424242424
+  },
+  {
+   "run_id": "dcfgcons_xception",
+   "group": 3,
+   "detector": "xception",
+   "variant": "dcfg_cons",
+   "epoch_min": 22.1,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 687.8992424242424,
+   "likely_min": 356.3992424242424
+  },
+  {
+   "run_id": "lumen_nocons_xception",
+   "group": 3,
+   "detector": "xception",
+   "variant": "lumen_nocons",
+   "epoch_min": 15.5408778173191,
+   "how": "pilot lumen x smoke ratio nocons",
+   "eval_min": 24.899242424242424,
+   "worst_min": 491.1255769438154,
+   "likely_min": 258.0124096840289
+  },
+  {
+   "run_id": "lumen_nolive_xception",
+   "group": 3,
+   "detector": "xception",
+   "variant": "lumen_nolive",
+   "epoch_min": 22.2,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 690.8992424242424,
+   "likely_min": 357.8992424242424
+  },
+  {
+   "run_id": "lumen_frozensensor_xception",
+   "group": 3,
+   "detector": "xception",
+   "variant": "lumen_frozensensor",
+   "epoch_min": 22.2,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 690.8992424242424,
+   "likely_min": 357.8992424242424
+  },
+  {
+   "run_id": "lumen_xception_s43",
+   "group": 4,
+   "detector": "xception",
+   "variant": "lumen",
+   "epoch_min": 22.2,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 690.8992424242424,
+   "likely_min": 357.8992424242424
+  },
+  {
+   "run_id": "lumen_xception_s44",
+   "group": 4,
+   "detector": "xception",
+   "variant": "lumen",
+   "epoch_min": 22.2,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 690.8992424242424,
+   "likely_min": 357.8992424242424
+  },
+  {
+   "run_id": "augft_xception_s43",
+   "group": 4,
+   "detector": "xception",
+   "variant": "augft",
+   "epoch_min": 17.8,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 558.8992424242424,
+   "likely_min": 291.8992424242424
+  },
+  {
+   "run_id": "augft_xception_s44",
+   "group": 4,
+   "detector": "xception",
+   "variant": "augft",
+   "epoch_min": 17.8,
+   "how": "pilot (measured)",
+   "eval_min": 24.899242424242424,
+   "worst_min": 558.8992424242424,
+   "likely_min": 291.8992424242424
+  }
+ ],
+ "groups": {
+  "1": {
+   "n": 12,
+   "worst": 6.817344788959151,
+   "likely": 3.5518778869038177,
+   "cum_worst": 6.817344788959151,
+   "cum_likely": 3.5518778869038177
+  },
+  "2": {
+   "n": 2,
+   "worst": 0.7457560811517026,
+   "likely": 0.39016918114824184,
+   "cum_worst": 7.563100870110853,
+   "cum_likely": 3.9420470680520596
+  },
+  "3": {
+   "n": 5,
+   "worst": 2.1873073240561007,
+   "likely": 1.1368815134590267,
+   "cum_worst": 9.750408194166955,
+   "cum_likely": 5.078928581511086
+  },
+  "4": {
+   "n": 4,
+   "worst": 1.735831228956229,
+   "likely": 0.9024978956228955,
+   "cum_worst": 11.486239423123184,
+   "cum_likely": 5.981426477133981
+  }
+ },
+ "worst": 11.486239423123184,
+ "likely": 5.981426477133981
+}

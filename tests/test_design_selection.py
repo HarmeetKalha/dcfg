@@ -290,7 +290,7 @@ def test_new_pilot_configs_isolated_and_standard(x):
 
 
 def test_jointft_pilot_equals_real_jointft_except_pilot_keys():
-    real = tf.load_config(REPO_ROOT / "configs/train/dcfg_jointft_xception.yaml")
+    real = tf.load_config(REPO_ROOT / "configs/train/jointft_xception.yaml")
     pil = tf.load_config(REPO_ROOT / "configs/train/pilot/pilot_jointft_xception.yaml")
     diff = {k for k in set(real) | set(pil) if real.get(k) != pil.get(k)}
     assert diff == {"run_id", "pilot", "stop_after_epochs", "timing_sync", "run_dir", "wandb_id"}
@@ -302,7 +302,7 @@ def test_real_configs_untouched_by_new_variants():
         if p.name == "base.yaml":
             continue
         c = tf.load_config(p)
-        assert c["variant"] not in tf.CONSISTENCY_VARIANTS and not c.get("consistency")
+        assert not c.get("consistency")  # lumen variants get the default 1/1 from the engine, not from the config
         assert "consistency" not in yaml.safe_load(p.read_text())
 
 
