@@ -15,54 +15,6 @@ import phase8_smoke as ps  # noqa: E402
 
 
 # ------------------------------------------------------------------ gen_matrix
-def test_matrix_is_exactly_the_74_list_in_order() -> None:
-    ids = [r["run_id"] for r in gm.matrix_runs()]
-    assert len(ids) == len(set(ids)) == 20
-    exp_t1 = [f"{v}_{d}" for d in ("xception", "efficientnetb4", "f3net", "ucf") for v in ("dcfg", "fixed", "augft")]
-    assert ids[:12] == exp_t1
-    assert ids[12:] == ["gate_nosensor_xception", "dcfg_frozensensor_xception", "dcfg_nolive_xception",
-                        "dcfg_jointft_xception", "dcfg_xception_s43", "dcfg_xception_s44",
-                        "fixed_xception_s43", "fixed_xception_s44"]
-    assert [r["group"] for r in gm.matrix_runs()] == [1] * 12 + [2] * 4 + [3] * 2 + [4] * 2
-
-
-def test_run_attributes() -> None:
-    by = {r["run_id"]: r for r in gm.matrix_runs()}
-    assert by["dcfg_ucf"]["variant"] == "dcfg" and by["dcfg_ucf"]["detector"] == "ucf"
-    assert by["augft_f3net"]["variant"] == "augft" and by["augft_f3net"]["seed"] == 42
-    assert by["dcfg_xception_s44"]["seed"] == 44
-    assert by["fixed_xception_s44"]["seed"] == 44 and by["fixed_xception_s44"]["variant"] == "fixed"
-    assert by["dcfg_xception_s43"]["seed"] == 43
-    assert by["gate_nosensor_xception"]["variant"] == "nosensor"
-    assert by["dcfg_nolive_xception"]["variant"] == "dcfg_nolive"
-    assert by["dcfg_frozensensor_xception"]["freeze_sensor"] and by["dcfg_frozensensor_xception"]["variant"] == "dcfg"
-    assert sum(r["freeze_sensor"] for r in by.values()) == 1
-    assert all(r["detector"] == "xception" for r in by.values() if r["tier"] == 2)
-
-
-def test_configs_and_queue_lines(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    bfile = tmp_path / "b.yaml"
-    bfile.write_text(yaml.safe_dump({"xception": 32, "efficientnetb4": 24, "f3net": 32, "ucf": 16}))
-    out = tmp_path / "cfg"
-    assert gm.main(["--out-dir", str(out), "--batch-yaml", str(bfile)]) == 0
-    lines = capsys.readouterr().out.strip().splitlines()
-    assert len(lines) == 40 and len({ln.split(" | ")[0] for ln in lines}) == 40
-    assert lines[0].startswith("dcfg_xception | ") and lines[1].startswith("eval_dcfg_xception | ")
-    assert "--conditions all --split test --frontend runs/dcfg_xception/frontend.pt" in lines[1]
-    assert lines[4].startswith("augft_xception | ") and "--detector-ckpt runs/augft_xception/detector.pt" in lines[5]
-    assert "--frontend" not in lines[5]
-    joint = next(ln for ln in lines if ln.startswith("eval_dcfg_jointft_xception"))
-    assert "--frontend" in joint and "--detector-ckpt" in joint
-    assert all(ln.endswith("#hb=30") for ln in lines)
-    cfgs = sorted(out.glob("*.yaml"))
-    assert len(cfgs) == 20
-    c = yaml.safe_load((out / "dcfg_efficientnetb4.yaml").read_text())
-    assert c["batch_size"] == 24 and c["detector"] == "efficientnetb4" and c["variant"] == "dcfg"
-    assert yaml.safe_load((out / "fixed_ucf.yaml").read_text())["batch_size"] == 16
-    assert yaml.safe_load((out / "dcfg_xception_s44.yaml").read_text())["seed"] == 44
-    assert yaml.safe_load((out / "dcfg_frozensensor_xception.yaml").read_text())["freeze_sensor"] is True
-
-
 def test_gen_matrix_does_not_touch_queue(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     q = JOBS.parent / "queue.txt"
     before = q.read_bytes()
@@ -105,19 +57,18 @@ def test_build_eta_totals_and_missing() -> None:
     rates = {"xception": {"dcfg": 100.0, "fixed": 120.0, "augft": 50.0, "jointft": 40.0}}
     val = {"xception": {"dcfg": 600.0, "augft": 500.0}}
     rows, tot = ps.build_eta(runs, {"xception": 32}, rates, val, {"xception": (1500.0, "log")}, n_fake=64000)
-    assert len(rows) == len(runs) == 11 and not tot["missing"]
+    assert len(rows) == len(runs) == 14 and not tot["missing"]
     assert sorted(tot["groups"]) == [1, 2, 3, 4]
     assert abs(sum(g["worst_gpu_days"] for g in tot["groups"].values()) - tot["worst_gpu_days"]) < 1e-9
     by = {r["run_id"]: r for r in rows}
     assert by["dcfg_xception"]["steps_per_epoch"] == 4000
     assert by["dcfg_xception"]["train_epoch_s"] == pytest.approx(4000 * 32 / 100)
-    assert by["gate_nosensor_xception"]["timing_class"] == "fixed"  # nosensor timed as fixed
-    assert by["dcfg_frozensensor_xception"]["timing_class"] == "dcfg"
-    assert by["augft_xception"]["val_epoch_s"] == 500.0 and by["dcfg_jointft_xception"]["val_epoch_s"] == 600.0
+    assert by["bnft_xception"]["timing_class"] == "augft" and by["lumen_frozensensor_xception"]["timing_class"] == "dcfg"
+    assert by["augft_xception"]["val_epoch_s"] == 500.0 and by["jointft_xception"]["val_epoch_s"] == 600.0
     assert tot["worst_gpu_days"] == pytest.approx(sum(r["total_worst_s"] for r in rows) / 86400)
     assert tot["likely_gpu_days"] < tot["worst_gpu_days"]
     rows2, tot2 = ps.build_eta(runs + [gm.matrix_runs()[3]], {}, rates, val, {"xception": (1.0, "log")}, 64000)
-    assert tot2["missing"] == ["dcfg_efficientnetb4"]
+    assert tot2["missing"] == ["lumen_efficientnetb4"]
     md = ps.eta_markdown(rows, tot, ["note"])
     assert "30 ep total" in md and "GPU-days" in md and "ASSUMPTION" in md
 

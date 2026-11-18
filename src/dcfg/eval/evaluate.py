@@ -10,7 +10,11 @@
   from there); ``--split val`` requires an explicit ``--out-dir`` elsewhere.
 * ``--frontend frontend.pt`` (from ``dcfg.train.train_frontend``) puts the trained module before the
   frozen detector (FiLM variants dcfg_film/dcfg_filmlite also apply their FiLM hooks); ``--detector-ckpt detector.pt`` loads fine-tuned detector weights (augft/jointft).
+  ``--bn-ckpt bn.pt`` (variant bnft) applies the saved full BatchNorm state (weights, biases, running stats,
+  num_batches_tracked) onto the STOCK detector weights (key set must match exactly).
   ``--out-dir`` is the results-dir override (tests use a tmp dir).
+* Every result JSON carries ``early_stop_epoch``, ``best_epoch``, ``train_wall_time_s``, ``trainable_mb``,
+  ``detector_mb`` and ``params`` (trainable param count) (from the training metadata in the checkpoint; null for runs without training).
 * Scores are P(fake) = sigmoid(adapter logit) (see ``dcfg.detectors.adapter``), fp32 by default.
 """
 from __future__ import annotations
@@ -172,11 +176,20 @@ def read_ckpt_meta(path: str | os.PathLike[str], kind: str) -> dict[str, Any]:
     return {k: v for k, v in ck.items() if k != "state_dict"}
 
 
-def train_provenance(a_run: str, a_detector: str, frontend: str | None, detector_ckpt: str | None
-                     ) -> dict[str, Any]:
+#: training-metadata fields copied (flat) into every result JSON; null when the run was not trained here
+TRAIN_LOG_FIELDS = ("early_stop_epoch", "best_epoch", "train_wall_time_s", "trainable_mb", "detector_mb", "params")
+
+
+def train_log_fields(prov: dict[str, Any]) -> dict[str, Any]:
+    """The flat training-log fields of ``prov`` (``train_provenance`` output); missing -> None."""
+    return {k: prov.get(k) for k in TRAIN_LOG_FIELDS}
+
+
+def train_provenance(a_run: str, a_detector: str, frontend: str | None, detector_ckpt: str | None,
+                     bn_ckpt: str | None = None) -> dict[str, Any]:
     """Collect + verify (run_id, detector) provenance of the checkpoints being evaluated."""
     metas = {}
-    for kind, path in (("frontend", frontend), ("detector", detector_ckpt)):
+    for kind, path in (("frontend", frontend), ("detector", detector_ckpt), ("detector", bn_ckpt)):
         if not path:
             continue
         m = read_ckpt_meta(path, kind)
@@ -184,17 +197,18 @@ def train_provenance(a_run: str, a_detector: str, frontend: str | None, detector
             if m.get(key) != want:
                 raise SystemExit(f"{kind} checkpoint {path}: {key}={m.get(key)!r} but this evaluation is "
                                  f"{key}={want!r}; refusing to evaluate a mismatched checkpoint")
-        metas[kind] = m
+        metas[kind if not (kind == "detector" and "detector" in metas) else "bn"] = m
     if not metas:
         return {}
     m = metas.get("frontend") or metas["detector"]
     return {"run_id": m["run_id"], "variant": m.get("variant"), "detector": m["detector"], "seed": m.get("seed"),
             "best_epoch": m.get("best_epoch"), "val_mean_auc": m.get("val_mean_auc"),
-            "train_git_commit": m.get("git_commit"), "train_config": m.get("train_config"), "pilot": bool(m.get("pilot", False))}
+            "train_git_commit": m.get("git_commit"), "train_config": m.get("train_config"), "pilot": bool(m.get("pilot", False)),
+            **{k: m.get(k) for k in TRAIN_LOG_FIELDS}}
 
 
 def checkpoint_identity(detector: str, frontend: str | None, detector_ckpt: str | None,
-                        weights: str | None) -> dict[str, Any]:
+                        weights: str | None, bn_ckpt: str | None = None) -> dict[str, Any]:
     """sha256 of every checkpoint used (base runs: detector weights path + sha)."""
     from dcfg.detectors.registry import default_weights_path
     wpath = detector_ckpt or weights or str(default_weights_path(detector))
@@ -203,12 +217,15 @@ def checkpoint_identity(detector: str, frontend: str | None, detector_ckpt: str 
     if frontend:
         ident["frontend_path"] = str(Path(frontend).resolve())
         ident["frontend_sha256"] = sha256_file(frontend)
+    if bn_ckpt:
+        ident["bn_path"] = str(Path(bn_ckpt).resolve())
+        ident["bn_sha256"] = sha256_file(bn_ckpt)
     return ident
 
 
 def _same_ckpts(old: dict[str, Any], new: dict[str, Any]) -> bool:
     """Compare by hash (paths may move); a missing hash never matches."""
-    keys = ("detector_weights_sha256", "frontend_sha256")
+    keys = ("detector_weights_sha256", "frontend_sha256", "bn_sha256")
     return all(old.get(k) == new.get(k) for k in keys) and "detector_weights_sha256" in old
 
 
@@ -243,6 +260,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--frontend", default=None, help="trained front-end (frontend.pt from train_frontend)")
     ap.add_argument("--detector-ckpt", default=None,
                     help="fine-tuned detector weights (detector.pt from augft/jointft); same as --weights")
+    ap.add_argument("--bn-ckpt", default=None,
+                    help="BN-only fine-tuned state (bn.pt from bnft), applied onto the stock detector weights")
     ap.add_argument("--runs-dir", default=None, help="where the heartbeat goes (default runs/)")
     ap.add_argument("--conditions", default="all", help="comma list or 'all'")
     ap.add_argument("--split", default="test", choices=["test", "val"])
@@ -266,8 +285,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     from dcfg.detectors.registry import dfb_commit
 
     conds = resolve_conditions(a.conditions, load_conditions(CONDITIONS_YAML))
-    prov = train_provenance(a.run, a.detector, a.frontend, a.detector_ckpt)
-    ident = checkpoint_identity(a.detector, a.frontend, a.detector_ckpt, a.weights)
+    if a.bn_ckpt and a.detector_ckpt:
+        raise SystemExit("--bn-ckpt and --detector-ckpt are mutually exclusive")
+    prov = train_provenance(a.run, a.detector, a.frontend, a.detector_ckpt, a.bn_ckpt)
+    ident = checkpoint_identity(a.detector, a.frontend, a.detector_ckpt, a.weights, a.bn_ckpt)
     if not a.force:
         check_stale(out_dir, a.run, conds, ident)
     todo = [c for c in conds if a.force or not (out_dir / f"{a.run}__{c.name}.json").exists()]
@@ -276,8 +297,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     device = "cuda" if torch.cuda.is_available() else "cpu"
     det = Detector(a.detector, weights_path=a.detector_ckpt or a.weights, device=device).freeze()
+    if a.bn_ckpt:  # BN-only fine-tuning: stock weights + the tuned BN state
+        bn = torch.load(a.bn_ckpt, map_location="cpu", weights_only=True)
+        det.load_bn_state_dict(bn["state_dict"])
+        det.freeze()
     front = None
-    extra: dict[str, Any] = {"checkpoints": ident, "train": prov or None}
+    extra: dict[str, Any] = {"checkpoints": ident, "train": prov or None, **train_log_fields(prov)}
     if a.run.startswith("pilot_") or prov.get("pilot"):
         extra["pilot"] = True
     if a.frontend:
@@ -287,6 +312,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                   "detector_ckpt": a.detector_ckpt or a.weights}
     elif a.detector_ckpt:
         extra |= {"detector_ckpt": a.detector_ckpt}
+    if a.bn_ckpt:
+        extra |= {"bn_ckpt": a.bn_ckpt}
     source = DFBJsonSource(a.json, a.frames_root)
     # heartbeat dir: --runs-dir/<run>, else the runner's DCFG_RUN_DIR (job id may differ from --run), else runs/<run>
     env_dir = os.environ.get("DCFG_RUN_DIR")

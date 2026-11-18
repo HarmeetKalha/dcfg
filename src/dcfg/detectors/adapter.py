@@ -47,6 +47,7 @@ class Detector(nn.Module):
         if load_weights:
             self.load_checkpoint(self.weights_path)
         self._frozen = False
+        self._bn_only = False
         self.to(device)
         self.eval()
 
@@ -97,14 +98,15 @@ class Detector(nn.Module):
     def forward_with_features(self, x_normalized: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """``(logit (B,), feat (B, D))``: the logit of :meth:`forward` and the penultimate pooled features.
 
-        Xception: the 2048-d vector after ReLU + global average pooling, i.e. exactly the input of
-        ``last_linear`` (DFB ``backbone.last_emb``). Other detectors: DFB's ``feat`` output, global-average
+        Xception / F3Net: the 2048-d vector after ReLU + global average pooling, i.e. exactly the input of
+        ``last_linear`` (DFB ``backbone.last_emb``); EfficientNet-B4: its 1792-d pooled ``last_emb`` (input of
+        ``last_layer``; dropout is off in the DFB config). Other detectors (UCF): DFB's ``feat`` output, global-average
         pooled if 4-D (a generic fallback; check that it is the right layer before relying on it).
         Features keep the autocast dtype; callers cast to fp32."""
         out = self.dfb_forward(x_normalized)
         cls = out["cls"].float()
         bb = getattr(self.model, "backbone", None)
-        if self.name == "xception" and hasattr(bb, "last_emb"):
+        if self.name in ("xception", "f3net", "efficientnetb4") and hasattr(bb, "last_emb"):
             feat = bb.last_emb
         else:
             feat = out["feat"]
@@ -115,18 +117,52 @@ class Detector(nn.Module):
     def film_sites(self) -> dict[str, tuple[nn.Module, int]]:
         """``{site: (module whose OUTPUT is modulated, channels)}`` for FiLM (see ``dcfg.models.film``).
 
-        Xception only. Channels are read from the actual modules (last BatchNorm of a block)."""
-        if self.name != "xception":
-            raise NotImplementedError(f"FiLM sites are defined for xception only, not {self.name!r}")
-        bb = self.model.backbone
+        * xception / f3net (F3Net = ONE Xception on the 12-channel FAD input, ``model.backbone``): ``entry`` =
+          ``block3`` (728 ch, end of the entry flow), ``exit`` = ``bn4`` (2048 ch, pre-ReLU/pool), plus the
+          design-selection sites ``mid4`` = ``block7``, ``mid8`` = ``block11`` (728 ch).
+        * efficientnetb4: ``entry`` = ``efficientnet._blocks[9]`` (56 ch, end of MBConv stage 3 = DFB's own
+          ``block_part1`` boundary), ``exit`` = ``efficientnet._bn1`` (1792 ch, BN after ``_conv_head``, before the
+          swish and the global pooling; the analogue of Xception's bn4).
+        * ucf: NOT DEFINED (ambiguous; see docs/DECISIONS.md), raises ``NotImplementedError``.
+
+        Channels are read from the actual modules (last BatchNorm of a block)."""
+        if self.name in ("xception", "f3net"):
+            bb = self.model.backbone
+            mods = {"entry": bb.block3, "mid4": bb.block7, "mid8": bb.block11, "exit": bb.bn4}
+        elif self.name == "efficientnetb4":
+            eff = self.model.backbone.efficientnet
+            mods = {"entry": eff._blocks[9], "exit": eff._bn1}
+        else:
+            raise NotImplementedError(f"FiLM sites are not defined for {self.name!r}")
 
         def chans(m: nn.Module) -> int:
             if isinstance(m, nn.BatchNorm2d):
                 return int(m.num_features)
             return int([x for x in m.modules() if isinstance(x, nn.BatchNorm2d)][-1].num_features)
 
-        mods = {"entry": bb.block3, "mid4": bb.block7, "mid8": bb.block11, "exit": bb.bn4}
         return {k: (m, chans(m)) for k, m in mods.items()}
+
+    def bn_modules(self) -> dict[str, nn.modules.batchnorm._BatchNorm]:
+        """All BatchNorm layers of the DFB model by module name (BN-only fine-tuning)."""
+        return {n: m for n, m in self.model.named_modules() if isinstance(m, nn.modules.batchnorm._BatchNorm)}
+
+    def bn_state_dict(self) -> dict[str, torch.Tensor]:
+        """Full BN state (weight, bias, running_mean, running_var, num_batches_tracked), keys as in
+        ``model.state_dict()``, cloned to CPU."""
+        out: dict[str, torch.Tensor] = {}
+        for n, m in self.bn_modules().items():
+            for k, v in m.state_dict().items():
+                out[f"{n}.{k}"] = v.detach().cpu().clone()
+        return out
+
+    def load_bn_state_dict(self, sd: dict[str, torch.Tensor]) -> None:
+        """Apply a BN state onto this (stock) detector; the key set must match exactly."""
+        want = set(self.bn_state_dict())
+        if set(sd) != want:
+            raise KeyError(f"BN checkpoint keys mismatch: missing={sorted(want - set(sd))[:3]}, "
+                           f"unexpected={sorted(set(sd) - want)[:3]}")
+        res = self.model.load_state_dict(sd, strict=False)
+        assert not res.unexpected_keys, res.unexpected_keys
 
     @torch.no_grad()
     def predict_prob(self, x01: torch.Tensor) -> torch.Tensor:
@@ -141,13 +177,35 @@ class Detector(nn.Module):
         """
         for p in self.parameters():
             p.requires_grad_(False)
-        self._frozen = True
+        self._frozen, self._bn_only = True, False
         self.eval()
         return self
 
+    def freeze_except_bn(self) -> int:
+        """BN-only fine-tuning (variant ``bnft``): every parameter frozen except the BatchNorm affine
+        weights/biases; in ``train()`` mode ONLY the BN layers are in train mode (batch statistics, running
+        stats update), every other module stays in eval mode. Returns the number of trainable parameters."""
+        for p in self.parameters():
+            p.requires_grad_(False)
+        n = 0
+        for m in self.bn_modules().values():
+            for p in (m.weight, m.bias):
+                if p is not None:
+                    p.requires_grad_(True)
+                    n += p.numel()
+        self._frozen, self._bn_only = False, True
+        self.train(self.training)
+        return n
+
     def train(self, mode: bool = True) -> "Detector":
-        """Like ``nn.Module.train`` but a frozen detector always stays in eval mode."""
-        return super().train(False if getattr(self, "_frozen", False) else mode)
+        """Like ``nn.Module.train`` but a frozen detector always stays in eval mode, and a BN-only detector
+        keeps everything except its BatchNorm layers in eval mode."""
+        nn.Module.train(self, False if getattr(self, "_frozen", False) else mode)
+        if getattr(self, "_bn_only", False):
+            for m in self.modules():
+                if not isinstance(m, nn.modules.batchnorm._BatchNorm):
+                    m.training = False
+        return self
 
 
 class FilmHooks:

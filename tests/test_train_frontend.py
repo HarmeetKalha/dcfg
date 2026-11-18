@@ -56,15 +56,14 @@ class DummyDetector(nn.Module):
         """Four distinct 4-channel outputs (conv, bn, relu, pool) standing in for entry/mid4/mid8/exit."""
         return {k: (self.model[i], 4) for i, k in enumerate(("entry", "mid4", "mid8", "exit"))}
 
-    def freeze(self):
-        for p in self.parameters():
-            p.requires_grad_(False)
-        self._frozen = True
-        self.eval()
-        return self
-
-    def train(self, mode=True):
-        return super().train(False if self._frozen else mode)
+    # same freezing / BN-only logic as the real adapter (they only use self.model / self.parameters / self.modules)
+    freeze = _RealDetector.freeze
+    freeze_except_bn = _RealDetector.freeze_except_bn
+    train = _RealDetector.train
+    bn_modules = _RealDetector.bn_modules
+    bn_state_dict = _RealDetector.bn_state_dict
+    load_bn_state_dict = _RealDetector.load_bn_state_dict
+    _bn_only = False
 
 
 @pytest.fixture()
@@ -110,7 +109,8 @@ def test_variant_runs_and_writes_artifacts(data, tmp_path, variant):
     assert res["epochs_run"] == 2 and not res["truncated"]
     for f in ("last.pt", "best.pt", "metrics.csv", "train_log.csv", "batches.log", "heartbeat", "done.json"):
         assert (rd / f).exists(), f
-    assert (rd / "frontend.pt").exists() == (variant != "augft")
+    assert (rd / "frontend.pt").exists() == (tf.GATE_KIND[tf.canonical_variant(variant)] is not None)
+    assert (rd / "bn.pt").exists() == (variant in tf.BN_ONLY)
     assert (rd / "detector.pt").exists() == (variant in tf.TRAIN_DETECTOR)
     header = (rd / "metrics.csv").read_text().splitlines()[0]
     assert "val_clean" in header and "val_mixed_heavy" in header and "w_mean_ch2" in header

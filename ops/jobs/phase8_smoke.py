@@ -43,7 +43,10 @@ BATCH_TRIES = (32, 24, 16)
 EPOCHS_WORST, EPOCHS_LIKELY = 30, 15
 #: trainer variant -> timing class measured in step d
 TIMING_CLASS = {"dcfg": "dcfg", "dcfg_nolive": "dcfg", "dcfg_jointft": "jointft", "fixed": "fixed",
-                "nosensor": "fixed", "augft": "augft"}
+                "nosensor": "fixed", "augft": "augft",
+                # LUMEN matrix variants (legacy phase-8 approximation; the LUMEN ETA is ops/jobs/lumen_eta.py)
+                "lumen": "dcfg", "lumen_nocons": "dcfg", "lumen_nolive": "dcfg", "lumen_frozensensor": "dcfg",
+                "dcfg_cons": "dcfg", "bnft": "augft"}
 
 
 # ============================================================================ pure logic

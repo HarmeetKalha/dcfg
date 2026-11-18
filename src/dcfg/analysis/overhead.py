@@ -2,6 +2,7 @@
 
     python -m dcfg.analysis.overhead [--out results/raw/overhead.json]
     python -m dcfg.analysis.overhead --design-selection --out <path/outside/results/raw>/overhead.json
+    python -m dcfg.analysis.overhead --lumen --out results/qa/lumen_overhead.json
 
 Timing: CUDA events around the module forward only (eval mode, no_grad, fp32 input 256x256; the sensor CNN
 uses its default fp16 autocast on CUDA as in training/eval), warmup 20, 100 iterations, median; reported
@@ -13,6 +14,11 @@ only, FLOPs = 2*MACs); the method used is recorded. Backward cost is not measure
 results/raw|tables|figures): end-to-end ms/image of detector, fixed+det, dcfg+det, film+det, filmlite+det
 (front-end + FiLM hooks + detector, fp32 detector, sensor fp16 as in eval) at batch 1 and 32, the added
 ms/image over the plain detector, and trainable-parameter counts of every design-selection row.
+
+``--lumen`` (requires an explicit ``--out`` outside results/raw|tables|figures, e.g. results/qa/lumen_overhead.json):
+for every detector with FiLM sites (UCF is skipped while its sites are undecided) the LUMEN pipeline
+(sensor + DCFG gate + 2-site FiLM + detector) vs the plain detector: added trainable params (+ % of the detector's
+params), ms/image at batch 1 and 32 (same protocol as ``--design-selection``).
 """
 from __future__ import annotations
 
@@ -198,14 +204,82 @@ def run_design_selection(device: str, batches=(1, 32), warmup: int = 20, iters: 
     return out
 
 
+def run_lumen_overhead(device: str, detectors=DETECTORS, batches=(1, 32), warmup: int = 20,
+                       iters: int = 100) -> dict:
+    """Params and inference overhead of the LUMEN pipeline per detector (see module docstring)."""
+    from dcfg.detectors.adapter import Detector, FilmHooks
+    from dcfg.models.film import LUMEN_HIDDEN, FiLMBank
+
+    out: dict = {"device": device, "gpu": torch.cuda.get_device_name(0) if device.startswith("cuda") else None,
+                 "warmup": warmup, "iters": iters, "statistic": "median", "torch": torch.__version__,
+                 "timestamp": datetime.now(timezone.utc).isoformat(), "detectors": {},
+                 "note": "inference, fp32 detector, no_grad, eval mode; sensor CNN fp16 autocast as in eval; "
+                         "added = LUMEN pipeline minus the plain detector (front-end + FiLM MLP + hooks)."}
+    for name in detectors:
+        det = Detector(name, device=device).freeze().eval()
+        n_det = count_params(det.model)
+        try:
+            sites = det.film_sites()
+        except NotImplementedError as e:
+            out["detectors"][name] = {"skipped": str(e), "detector_params": n_det}
+            del det
+            continue
+        ch = {k: c for k, (_, c) in sites.items() if k in ("entry", "exit")}
+        fe = FrontEnd("dcfg", film=FiLMBank("filmlite", ch, hidden=LUMEN_HIDDEN[name])).to(device).eval()
+        hooks = FilmHooks(det, fe.film.sites)
+
+        def plain(x: torch.Tensor, d=det) -> torch.Tensor:
+            return d(d.normalize(x))
+
+        def lumen(x: torch.Tensor, d=det, f=fe, h=hooks) -> torch.Tensor:
+            y, _, fp = f.forward_full(x)
+            with h.conditioned(fp):
+                return d(d.normalize(y))
+
+        n_gate, n_sensor, n_film = count_params(fe.gate), count_params(fe.sensor), count_params(fe.film)
+        r: dict = {"detector_params": n_det, "sites": {k: {"channels": c} for k, c in ch.items()},
+                   "film_hidden": LUMEN_HIDDEN[name], "params_gate": n_gate, "params_sensor": n_sensor,
+                   "params_film": n_film, "added_trainable_params": count_params(fe),
+                   "added_pct_of_detector": 100.0 * count_params(fe) / n_det}
+        for b in batches:
+            base_t, lum_t = time_module(plain, b, device, warmup, iters), time_module(lumen, b, device, warmup, iters)
+            r[f"batch{b}"] = {"plain_ms_per_image": base_t["ms_per_image"], "lumen_ms_per_image": lum_t["ms_per_image"],
+                              "added_ms_per_image": lum_t["ms_per_image"] - base_t["ms_per_image"]}
+        out["detectors"][name] = r
+        hooks.remove()
+        del det, fe
+        gc.collect()
+        if device.startswith("cuda"):
+            torch.cuda.empty_cache()
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default=str(RESULTS_ROOT / "raw" / "overhead.json"))
     ap.add_argument("--warmup", type=int, default=20)
     ap.add_argument("--iters", type=int, default=100)
     ap.add_argument("--design-selection", action="store_true", help="design-selection pilot overhead (needs --out)")
+    ap.add_argument("--lumen", action="store_true", help="LUMEN overhead per detector (needs --out)")
     a = ap.parse_args(argv)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    if a.lumen:
+        if "--out" not in (argv if argv is not None else sys.argv):
+            raise SystemExit("--lumen requires an explicit --out")
+        out = Path(a.out).resolve()
+        for forbidden in ("raw", "tables", "figures"):
+            if out.is_relative_to((RESULTS_ROOT / forbidden).resolve()):
+                raise SystemExit(f"refusing to write LUMEN overhead numbers into results/{forbidden}")
+        res = run_lumen_overhead(device, warmup=a.warmup, iters=a.iters)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(res, indent=2) + "\n")
+        for k, r in res["detectors"].items():
+            if "skipped" in r:
+                print(f"{k:<15} skipped: {r['skipped'][:80]}")
+            else:
+                print(f"{k:<15} +{r['added_trainable_params']:,} params ({r['added_pct_of_detector']:.2f}%) "
+                      f"b1 +{r['batch1']['added_ms_per_image']:.3f} b32 +{r['batch32']['added_ms_per_image']:.3f} ms/img")
+        return 0
     if a.design_selection:
         if "--out" not in (argv if argv is not None else sys.argv):
             raise SystemExit("--design-selection requires an explicit --out")

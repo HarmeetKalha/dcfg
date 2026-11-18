@@ -4,10 +4,15 @@
 
 Variants: ``dcfg`` (LIVE-pretrained sensor + gate, frozen detector), ``fixed``, ``nosensor``,
 ``dcfg_nolive`` (random sensor), ``augft`` (no module, detector fine-tuned on the degraded data),
-``dcfg_jointft`` (module + detector fine-tuned), and the design-selection variants (frozen detector, all use
+``dcfg_jointft`` (module + detector fine-tuned), ``bnft`` (no module; ONLY the detector's BatchNorm affine params
+train, BN in train mode, rest frozen; BCE), the LUMEN family (``lumen`` = ``dcfg_filmlite``, ``lumen_nocons``,
+``lumen_nolive``, ``lumen_frozensensor``; see below) and the design-selection variants (frozen detector, all use
 the consistency loss of ``dcfg.train.consistency``): ``dcfg_cons`` (dcfg + consistency), ``dcfg_film`` (+ FiLM at
 entry/block7/block11/exit of Xception, MLP 128-256), ``dcfg_filmlite`` (FiLM at entry/exit only, MLP 128-64).
-FiLM MLP params train in the gate param group (lr_gate). The teacher (clean image, FiLM hooks disabled, no_grad,
+LUMEN = LIVE sensor + DCFG gate + 2-site FiLM (``Detector.film_sites``: entry/exit, per-detector MLP width
+``film.LUMEN_HIDDEN``) + consistency loss (KL 1.0, feat-MSE 1.0), frozen detector; ``dcfg_filmlite`` is kept as an
+alias of ``lumen`` (the pilot checkpoints/configs use it); ``lumen_nocons`` = no consistency loss, ``lumen_nolive`` =
+random-init sensor, ``lumen_frozensensor`` = sensor frozen. FiLM MLP params train in the gate param group (lr_gate). The teacher (clean image, FiLM hooks disabled, no_grad,
 eval mode) and the student (front-end(degraded), FiLM on) share one detector forward helper, hence the same
 normalization and autocast mode.
 
@@ -38,6 +43,7 @@ import argparse
 import contextlib
 import csv
 import hashlib
+import io
 import json
 import math
 import os
@@ -59,7 +65,7 @@ from dcfg.data.degradations import (TrainDegradation, load_conditions, load_val_
 from dcfg.data.ffpp import DFBJsonSource, FrameRecord
 from dcfg.eval.evaluate import ConditionDataset, condition_comp, git_commit, predict
 from dcfg.eval.metrics import frame_auc
-from dcfg.models.film import FILM_KINDS, FiLMBank
+from dcfg.models.film import FILM_KINDS, LUMEN_HIDDEN, FiLMBank
 from dcfg.models.frontend import FrontEnd
 from dcfg.models.sensor import DegradationSensor
 from dcfg.paths import REPO_ROOT, RUNS_ROOT
@@ -87,16 +93,32 @@ def config_diff(old: dict[str, Any], new: dict[str, Any]) -> dict[str, tuple[Any
 
 
 VARIANTS = ("dcfg", "fixed", "nosensor", "dcfg_nolive", "augft", "dcfg_jointft",
-            "dcfg_cons", "dcfg_film", "dcfg_filmlite")
+            "dcfg_cons", "dcfg_film", "dcfg_filmlite",
+            "lumen", "lumen_nocons", "lumen_nolive", "lumen_frozensensor", "bnft")
+#: alias -> canonical variant (behaviour is looked up on the canonical name; configs/checkpoints keep the given name)
+VARIANT_ALIAS = {"dcfg_filmlite": "lumen"}
 #: variants that use the consistency loss (clean teacher, frozen detector); config ``consistency`` defaults to 1/1
-CONSISTENCY_VARIANTS = ("dcfg_cons", "dcfg_film", "dcfg_filmlite")
-FILM_VARIANTS = {"dcfg_film": "film", "dcfg_filmlite": "filmlite"}
+CONSISTENCY_VARIANTS = ("dcfg_cons", "dcfg_film", "dcfg_filmlite", "lumen", "lumen_nolive", "lumen_frozensensor")
+FILM_VARIANTS = {"dcfg_film": "film", "dcfg_filmlite": "filmlite", "lumen": "filmlite", "lumen_nocons": "filmlite", "lumen_nolive": "filmlite",
+                 "lumen_frozensensor": "filmlite"}
+LUMEN_FAMILY = ("lumen", "lumen_nocons", "lumen_nolive", "lumen_frozensensor")
+NOLIVE_VARIANTS = ("dcfg_nolive", "lumen_nolive")  #: random-init sensor (no LIVE pretraining)
+FROZEN_SENSOR_VARIANTS = ("lumen_frozensensor",)  #: sensor frozen regardless of ``freeze_sensor``
 TRAIN_DETECTOR = ("augft", "dcfg_jointft")
+BN_ONLY = ("bnft",)  #: only the detector's BatchNorm affine params train (BN in train mode)
+
+
+def canonical_variant(v: str) -> str:
+    """Resolve aliases (``dcfg_filmlite`` -> ``lumen``); unknown names raise."""
+    if v not in VARIANTS:
+        raise ValueError(f"variant must be one of {VARIANTS}")
+    return VARIANT_ALIAS.get(v, v)
 #: UCF's own specific-forgery labels (DFB ucf.yaml label_dict): real 0, DF 1, F2F 2, FS 3, NT 4.
 SPE_LABEL = {"FF-real": 0, "FF-DF": 1, "FF-F2F": 2, "FF-FS": 3, "FF-NT": 4}
 GATE_KIND = {"dcfg": "dcfg", "dcfg_nolive": "dcfg", "dcfg_jointft": "dcfg", "fixed": "fixed",
              "nosensor": "nosensor", "augft": None, "dcfg_cons": "dcfg", "dcfg_film": "dcfg",
-             "dcfg_filmlite": "dcfg"}
+             "lumen": "dcfg", "lumen_nocons": "dcfg", "lumen_nolive": "dcfg", "lumen_frozensensor": "dcfg",
+             "bnft": None}
 
 
 # ----------------------------------------------------------------------------- config
@@ -131,14 +153,14 @@ def build_detector(cfg: dict[str, Any], device: str | torch.device) -> nn.Module
 def build_frontend(cfg: dict[str, Any], detector: Any = None) -> FrontEnd | None:
     """Front-end for the variant (None for augft). Loads LIVE sensor weights for dcfg/dcfg_jointft.
     FiLM variants also need the ``detector`` (site channel counts are read from its modules)."""
-    v = cfg["variant"]
+    v = canonical_variant(cfg["variant"])
     kind = GATE_KIND[v]
     if kind is None:
         return None
     sensor = None
     if kind == "dcfg":
         sensor = DegradationSensor()
-        if v != "dcfg_nolive":
+        if v not in NOLIVE_VARIANTS:
             sw = _path(cfg["sensor_weights"])
             if not sw.exists():
                 raise FileNotFoundError(f"sensor weights {sw} missing (variant {v} needs LIVE pretraining)")
@@ -148,8 +170,10 @@ def build_frontend(cfg: dict[str, Any], detector: Any = None) -> FrontEnd | None
         if detector is None:
             raise ValueError(f"variant {v} needs the detector to size the FiLM bank")
         sites = detector.film_sites()
-        film = FiLMBank(FILM_VARIANTS[v], {k: c for k, (_, c) in sites.items()})
-    return FrontEnd(kind, sensor=sensor, freeze_sensor=bool(cfg["freeze_sensor"]),
+        hidden = LUMEN_HIDDEN.get(cfg["detector"]) if v in LUMEN_FAMILY else None
+        film = FiLMBank(FILM_VARIANTS[v], {k: c for k, (_, c) in sites.items() if k in FILM_KINDS[FILM_VARIANTS[v]]["sites"]},
+                        hidden=hidden)
+    return FrontEnd(kind, sensor=sensor, freeze_sensor=bool(cfg["freeze_sensor"]) or v in FROZEN_SENSOR_VARIANTS,
                     sensor_amp=bool(cfg["sensor_amp"]), film=film)
 
 
@@ -157,10 +181,11 @@ class Pipeline(nn.Module):
     """x01 -> [front-end] -> detector.normalize -> detector -> logit. Returns ``(logit (B,), w or None)``."""
 
     def __init__(self, frontend: FrontEnd | None, detector: nn.Module, amp: bool, train_detector: bool,
-                 native_ucf: bool = False, film_hooks: Any = None) -> None:
+                 native_ucf: bool = False, film_hooks: Any = None, bn_only: bool = False) -> None:
         super().__init__()
         self.frontend, self.detector = frontend, detector
         self.amp, self.train_detector, self.native_ucf = amp, train_detector, native_ucf
+        self.bn_only = bn_only  # BN-only fine-tuning: the detector's own train() keeps non-BN modules in eval
         self.film_hooks = film_hooks  # adapter.FilmHooks or None (not a Module: holds no parameters)
 
     def _film(self, params: Any) -> Any:
@@ -220,19 +245,32 @@ class Pipeline(nn.Module):
 
     def train(self, mode: bool = True) -> "Pipeline":
         super().train(mode)
-        if not self.train_detector:
+        if not self.train_detector and not self.bn_only:
             self.detector.eval()
         return self
 
 
-def assert_detector_state(det: nn.Module, train_detector: bool) -> None:
-    """Frozen-detector invariant (CLAUDE.md): frozen => no grads and eval mode; fine-tuned => the opposite."""
+def assert_detector_state(det: nn.Module, train_detector: bool, bn_only: bool = False) -> None:
+    """Frozen-detector invariant (CLAUDE.md): frozen => no grads and eval mode; fine-tuned => the opposite.
+
+    ``bn_only`` (variant bnft, the ONLY exception that allows BN in train mode): exactly the BatchNorm
+    weight/bias parameters require grad, every other parameter is frozen and every non-BN module is in eval mode
+    (BN modules may be in either mode: validation switches them to eval)."""
+    bn = nn.modules.batchnorm._BatchNorm
+    if bn_only:
+        assert not train_detector
+        want = {id(p) for m in det.modules() if isinstance(m, bn) for p in (m.weight, m.bias) if p is not None}
+        got = {id(p) for p in det.parameters() if p.requires_grad}
+        assert got == want, f"bnft: {len(got ^ want)} params differ from the BN affine set"
+        assert not any(m.training for m in det.modules() if not isinstance(m, bn)), "bnft: non-BN module in train mode"
+        return
     n_req = sum(p.requires_grad for p in det.parameters())
     if train_detector:
         assert n_req == sum(1 for _ in det.parameters()), "fine-tuned detector has frozen params"
     else:
         assert n_req == 0, f"detector must be frozen but {n_req} params require grad"
-        assert not det.training, "frozen detector must be in eval mode"
+        assert not det.training and not any(m.training for m in det.modules()), \
+            "frozen detector must be in eval mode"
 
 
 def save_frontend(path: Path, frontend: FrontEnd, cfg: dict[str, Any], extra: dict[str, Any]) -> None:
@@ -247,7 +285,7 @@ def load_frontend(path: str | os.PathLike[str], device: str | torch.device = "cp
     ck = torch.load(path, map_location="cpu", weights_only=False)
     fm = ck.get("film")
     fe = FrontEnd(ck["gate_kind"], sensor_amp=ck.get("sensor_amp", True),
-                  film=FiLMBank(fm["kind"], fm["channels"]) if fm else None)
+                  film=FiLMBank(fm["kind"], fm["channels"], hidden=fm.get("hidden")) if fm else None)
     fe.load_state_dict(ck["state_dict"])
     fe.to(device).eval().requires_grad_(False)
     return fe, {k: v for k, v in ck.items() if k != "state_dict"}
@@ -344,6 +382,15 @@ def _save_atomic(obj: Any, path: Path) -> None:
     tmp.replace(path)
 
 
+def state_dict_mb(sd: dict[str, Tensor]) -> float:
+    """Size in MiB (2**20 bytes) of ``sd`` serialized with torch.save, floating tensors cast to fp32."""
+    conv = {k: (v.detach().cpu().float() if v.is_floating_point() else v.detach().cpu()).contiguous()
+            for k, v in sd.items()}
+    buf = io.BytesIO()
+    torch.save(conv, buf)
+    return buf.getbuffer().nbytes / 2**20
+
+
 def _rng_state() -> dict[str, Any]:
     return {"python": random.getstate(), "numpy": np.random.get_state(), "torch": torch.get_rng_state(),
             "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None}
@@ -379,18 +426,17 @@ class Trainer:
     """One training run in ``run_dir`` (resumable)."""
 
     def __init__(self, cfg: dict[str, Any], run_dir: Path | None = None) -> None:
-        if cfg["variant"] not in VARIANTS:
-            raise ValueError(f"variant must be one of {VARIANTS}")
+        self.variant = canonical_variant(cfg["variant"])  # alias-resolved; cfg["variant"] keeps the given name
         if not cfg.get("run_id"):
             raise ValueError("config needs run_id")
         self.cfg = cfg
-        self.variant = cfg["variant"]
         if self.variant in CONSISTENCY_VARIANTS and not cfg.get("consistency"):
             cfg["consistency"] = dict(cons.DEFAULT)  # recorded in the checkpoint config
         self.cons = cons.parse_config(cfg.get("consistency"))
         if self.cons is not None and self.variant not in CONSISTENCY_VARIANTS:
             raise ValueError(f"the consistency loss is only supported for {CONSISTENCY_VARIANTS}")
         self.train_det = self.variant in TRAIN_DETECTOR
+        self.bn_only = self.variant in BN_ONLY
         self.pilot = bool(cfg.get("pilot", False))
         default_dir = RUNS_ROOT / "pilot" / cfg["run_id"] if self.pilot else RUNS_ROOT / cfg["run_id"]
         self.run_dir = run_dir or Path(cfg["run_dir"] or os.environ.get("DCFG_RUN_DIR")
@@ -413,7 +459,10 @@ class Trainer:
             raise ValueError("fewer frames than one batch")
 
         det = build_detector(cfg, self.dev)
-        if not self.train_det:
+        self.n_bn_trainable = 0
+        if self.bn_only:
+            self.n_bn_trainable = det.freeze_except_bn()
+        elif not self.train_det:
             det.freeze()
         else:
             det.requires_grad_(True)
@@ -425,7 +474,7 @@ class Trainer:
             from dcfg.detectors.adapter import FilmHooks
             self.film_hooks = FilmHooks(det, self.frontend.film.sites)
         self.model = Pipeline(self.frontend, det, bool(cfg["amp"]), self.train_det, self.native_ucf,
-                              self.film_hooks).to(self.dev)
+                              self.film_hooks, self.bn_only).to(self.dev)
         self.det = det
         self.opt = self._make_optimizer()
         self.sched = torch.optim.lr_scheduler.LambdaLR(
@@ -468,21 +517,26 @@ class Trainer:
         if self.train_det:
             groups.append({"name": "detector", "params": list(self.det.parameters()),
                            "lr": float(c["lr_detector"])})
+        if self.bn_only:  # BN affine params only (everything else has requires_grad False)
+            groups.append({"name": "bn", "params": [p for p in self.det.parameters() if p.requires_grad],
+                           "lr": float(c["lr_detector"])})
         return torch.optim.AdamW(groups, weight_decay=float(c["weight_decay"]))
 
     def check_frozen(self) -> None:
-        assert_detector_state(self.det, self.train_det)
+        assert_detector_state(self.det, self.train_det, self.bn_only)
         fe = self.frontend
         if fe is not None and fe.sensor is not None and fe.freeze_sensor:
             assert not any(p.requires_grad for p in fe.sensor.parameters()) and not fe.sensor.training
         detp = {id(p) for p in self.det.parameters()}
         in_opt = any(id(p) in detp for g in self.opt.param_groups for p in g["params"])
-        assert in_opt == self.train_det, "detector params / optimizer mismatch"
+        assert in_opt == (self.train_det or self.bn_only), "detector params / optimizer mismatch"
 
     # -------------------------------------------------------------- checkpoints
     def _state(self) -> dict[str, Any]:
         s = {"frontend": self.frontend.state_dict() if self.frontend is not None else None,
              "detector": self.det.model.state_dict() if self.train_det else None}
+        if self.bn_only:  # full BN state: affine params AND running stats / num_batches_tracked
+            s["bn"] = self.det.bn_state_dict()
         return s
 
     def _full_ckpt(self) -> dict[str, Any]:
@@ -498,6 +552,8 @@ class Trainer:
             self.frontend.load_state_dict(s["frontend"])
         if self.train_det:
             self.det.model.load_state_dict(s["detector"])
+        if self.bn_only:
+            self.det.load_bn_state_dict(s["bn"])
 
     def try_resume(self) -> bool:
         last = self.run_dir / "last.pt"
@@ -726,6 +782,8 @@ class Trainer:
         """Track fp16 overflow skips. Returns True if the optimizer step was applied; raises
         :class:`NonFiniteAbort` if the loss scale fell below 1 or >50 consecutive steps were skipped."""
         skipped = after < before
+        if skipped:
+            self.st["skipped_steps"] = self.st.get("skipped_steps", 0) + 1  # fp16 overflow skips (persisted)
         self._consec_skips = self._consec_skips + 1 if skipped else 0
         if after < 1.0 or self._consec_skips > MAX_CONSEC_SKIPS:
             msg = (f"persistent non-finite gradients at step {self.st['step']}: GradScaler scale {after}, "
@@ -751,7 +809,8 @@ class Trainer:
         s, g = stats.tolist(), gn.tolist()
         row = {"step": st["step"], "epoch": epoch, "loss": f"{loss:.5f}",
                **{f"lr_{pg['name']}": f"{pg['lr']:.3e}" for pg in self.opt.param_groups},
-               "img_s": f"{self._img_s:.1f}",
+               "img_s": f"{self._img_s:.1f}", "scaler_scale": f"{self.scaler.get_scale():.1f}",
+               "skipped_steps": st.get("skipped_steps", 0),
                "gpu_mem_mb": f"{torch.cuda.max_memory_allocated() / 2**20:.0f}" if self.dev.type == "cuda" else 0,
                "gnorm_sensor": g[0], "gnorm_gate": g[1], "nonfinite_sensor": int(s[0]), "nonfinite_gate": int(s[1]),
                "zero_sensor": int(s[2]), "zero_gate": int(s[3])}
@@ -778,6 +837,7 @@ class Trainer:
         st["epoch"], st["step_in_epoch"] = epoch + 1, 0
         if st["bad"] >= int(self.cfg["patience"]):
             st["stopped"] = True
+            st["stop_epoch"] = epoch  # 0-based epoch at which early stopping triggered (like best_epoch)
         wm = {c: torch.tensor(m) for c, m in v["wmaps"].items()}
         wch = (torch.stack(list(wm.values())).mean(0).mean((1, 2)).tolist() if wm else [float("nan")] * 3)
         row = {"epoch": epoch, "step": st["step"], "val_mean_auc": f"{v['mean_auc']:.5f}",
@@ -856,6 +916,30 @@ class Trainer:
             return res
         return self._finalize()
 
+    def trainable_state_dict(self) -> dict[str, Tensor]:
+        """Only what this variant trains: front-end (+FiLM, fixed logits) and/or the BN state (bnft) and/or the whole
+        detector (augft/jointft). Keys are prefixed by the part."""
+        sd: dict[str, Tensor] = {}
+        if self.frontend is not None:
+            sd |= {f"frontend.{k}": v for k, v in self.frontend.state_dict().items()}
+        if self.bn_only:
+            sd |= {f"bn.{k}": v for k, v in self.det.bn_state_dict().items()}
+        if self.train_det:
+            sd |= {f"detector.{k}": v for k, v in self.det.model.state_dict().items()}
+        return sd
+
+    def train_stats(self) -> dict[str, Any]:
+        """Training metadata that evaluate.py copies into every result JSON (and done.json): early-stop / best
+        epoch (0-based), wall-clock training time, and checkpoint sizes (fp32 state_dict bytes, MiB)."""
+        st = self.st
+        n_tr = sum(p.numel() for m in (self.frontend, self.det) if m is not None
+                   for p in m.parameters() if p.requires_grad)
+        return {"early_stop_epoch": int(st["stop_epoch"]) if st.get("stopped") and "stop_epoch" in st else None,
+                "train_wall_time_s": float(st.get("train_s", 0.0) + st.get("val_s", 0.0)),
+                "trainable_mb": state_dict_mb(self.trainable_state_dict()),
+                "detector_mb": state_dict_mb(self.det.model.state_dict()),
+                "params": int(n_tr), "scaler_skipped_steps": int(st.get("skipped_steps", 0))}
+
     def _finalize(self) -> dict[str, Any]:
         """Load best.pt and write the evaluation artefacts (frontend.pt, detector.pt)."""
         st, cfg = self.st, self.cfg
@@ -863,13 +947,16 @@ class Trainer:
         self._load_model_state(best["model"])
         meta = {"best_epoch": st["best_epoch"], "val_mean_auc": st["best"], "git_commit": git_commit(),
                 "detector": cfg["detector"], "run_id": cfg["run_id"], "seed": int(cfg["seed"]),
-                "train_config": dict(cfg), "pilot": self.pilot}
+                "train_config": dict(cfg), "pilot": self.pilot, **self.train_stats()}
         if self.frontend is not None:
             save_frontend(self.run_dir / "frontend.pt", self.frontend, cfg, meta)
+        if self.bn_only:  # small artefact: the full BN state, applied onto the stock weights by evaluate --bn-ckpt
+            _save_atomic({"state_dict": self.det.bn_state_dict(), "meta": {**meta, "variant": cfg["variant"]}},
+                         self.run_dir / "bn.pt")
         if self.train_det:  # adapter loads {"state_dict": ...}; "meta" rides along (primitives only)
             _save_atomic({"state_dict": self.det.model.state_dict(), "meta": {**meta, "variant": cfg["variant"]}},
                          self.run_dir / "detector.pt")
-        res = {"run_id": cfg["run_id"], "truncated": False, "variant": self.variant, "epochs_run": st["epoch"],
+        res = {"run_id": cfg["run_id"], "truncated": False, "variant": cfg["variant"], "epochs_run": st["epoch"],
                "stopped_early": bool(st["stopped"]), "total_time_s": time.time() - self.t_start,
                "train_s": st.get("train_s", 0.0), "val_s": st.get("val_s", 0.0), **meta}
         if self._pilot_stop_due() and not st["stopped"]:

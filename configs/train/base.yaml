@@ -1,6 +1,6 @@
 # Base training config (PLAN 7.2, 7.4, 7.5). Variant configs set `base: base.yaml` and override.
 run_id: null            # required in the variant config, e.g. dcfg_xception
-variant: dcfg           # dcfg | fixed | nosensor | dcfg_nolive | augft | dcfg_jointft | dcfg_cons | dcfg_film | dcfg_filmlite
+variant: dcfg           # dcfg | fixed | nosensor | dcfg_nolive | augft | dcfg_jointft | dcfg_cons | dcfg_film | dcfg_filmlite(=lumen) | lumen | lumen_nocons | lumen_nolive | lumen_frozensensor | bnft
 detector: xception      # xception | effnb4 | f3net | ucf  (registry names)
 detector_weights: null  # null -> DFB default weights
 seed: 42
