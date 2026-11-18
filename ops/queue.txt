@@ -57,3 +57,53 @@ pilot_eval_dcfgcons | bash ops/jobs/pilot_eval.sh pilot_dcfgcons_xception #hb=30
 pilot_eval_dcfgfilm | bash ops/jobs/pilot_eval.sh pilot_dcfgfilm_xception #hb=30
 pilot_eval_dcfgfilmlite | bash ops/jobs/pilot_eval.sh pilot_dcfgfilmlite_xception #hb=30
 pilot_ds_report | .venv/bin/python ops/jobs/design_selection_report.py --no-overhead-run #noheartbeat
+lumen_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_xception.yaml #hb=30
+eval_lumen_xception | .venv/bin/python -m dcfg.eval.evaluate --run lumen_xception --detector xception --conditions all --split test --frontend runs/lumen_xception/frontend.pt #hb=30
+fixed_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/fixed_xception.yaml #hb=30
+eval_fixed_xception | .venv/bin/python -m dcfg.eval.evaluate --run fixed_xception --detector xception --conditions all --split test --frontend runs/fixed_xception/frontend.pt #hb=30
+augft_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/augft_xception.yaml #hb=30
+eval_augft_xception | .venv/bin/python -m dcfg.eval.evaluate --run augft_xception --detector xception --conditions all --split test --detector-ckpt runs/augft_xception/detector.pt #hb=30
+lumen_efficientnetb4 | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_efficientnetb4.yaml #hb=30
+eval_lumen_efficientnetb4 | .venv/bin/python -m dcfg.eval.evaluate --run lumen_efficientnetb4 --detector efficientnetb4 --conditions all --split test --frontend runs/lumen_efficientnetb4/frontend.pt #hb=30
+fixed_efficientnetb4 | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/fixed_efficientnetb4.yaml #hb=30
+eval_fixed_efficientnetb4 | .venv/bin/python -m dcfg.eval.evaluate --run fixed_efficientnetb4 --detector efficientnetb4 --conditions all --split test --frontend runs/fixed_efficientnetb4/frontend.pt #hb=30
+augft_efficientnetb4 | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/augft_efficientnetb4.yaml #hb=30
+eval_augft_efficientnetb4 | .venv/bin/python -m dcfg.eval.evaluate --run augft_efficientnetb4 --detector efficientnetb4 --conditions all --split test --detector-ckpt runs/augft_efficientnetb4/detector.pt #hb=30
+lumen_f3net | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_f3net.yaml #hb=30
+eval_lumen_f3net | .venv/bin/python -m dcfg.eval.evaluate --run lumen_f3net --detector f3net --conditions all --split test --frontend runs/lumen_f3net/frontend.pt #hb=30
+fixed_f3net | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/fixed_f3net.yaml #hb=30
+eval_fixed_f3net | .venv/bin/python -m dcfg.eval.evaluate --run fixed_f3net --detector f3net --conditions all --split test --frontend runs/fixed_f3net/frontend.pt #hb=30
+augft_f3net | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/augft_f3net.yaml #hb=30
+eval_augft_f3net | .venv/bin/python -m dcfg.eval.evaluate --run augft_f3net --detector f3net --conditions all --split test --detector-ckpt runs/augft_f3net/detector.pt #hb=30
+lumen_ucf | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_ucf.yaml #hb=30
+eval_lumen_ucf | .venv/bin/python -m dcfg.eval.evaluate --run lumen_ucf --detector ucf --conditions all --split test --frontend runs/lumen_ucf/frontend.pt #hb=30
+fixed_ucf | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/fixed_ucf.yaml #hb=30
+eval_fixed_ucf | .venv/bin/python -m dcfg.eval.evaluate --run fixed_ucf --detector ucf --conditions all --split test --frontend runs/fixed_ucf/frontend.pt #hb=30
+augft_ucf | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/augft_ucf.yaml #hb=30
+eval_augft_ucf | .venv/bin/python -m dcfg.eval.evaluate --run augft_ucf --detector ucf --conditions all --split test --detector-ckpt runs/augft_ucf/detector.pt #hb=30
+findings_group1 | .venv/bin/python ops/jobs/group_findings.py --group 1 #noheartbeat
+jointft_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/jointft_xception.yaml #hb=30
+eval_jointft_xception | .venv/bin/python -m dcfg.eval.evaluate --run jointft_xception --detector xception --conditions all --split test --frontend runs/jointft_xception/frontend.pt --detector-ckpt runs/jointft_xception/detector.pt #hb=30
+bnft_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/bnft_xception.yaml #hb=30
+eval_bnft_xception | .venv/bin/python -m dcfg.eval.evaluate --run bnft_xception --detector xception --conditions all --split test --bn-ckpt runs/bnft_xception/bn.pt #hb=30
+findings_group2 | .venv/bin/python ops/jobs/group_findings.py --group 2 #noheartbeat
+dcfg_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/dcfg_xception.yaml #hb=30
+eval_dcfg_xception | .venv/bin/python -m dcfg.eval.evaluate --run dcfg_xception --detector xception --conditions all --split test --frontend runs/dcfg_xception/frontend.pt #hb=30
+dcfgcons_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/dcfgcons_xception.yaml #hb=30
+eval_dcfgcons_xception | .venv/bin/python -m dcfg.eval.evaluate --run dcfgcons_xception --detector xception --conditions all --split test --frontend runs/dcfgcons_xception/frontend.pt #hb=30
+lumen_nocons_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_nocons_xception.yaml #hb=30
+eval_lumen_nocons_xception | .venv/bin/python -m dcfg.eval.evaluate --run lumen_nocons_xception --detector xception --conditions all --split test --frontend runs/lumen_nocons_xception/frontend.pt #hb=30
+lumen_nolive_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_nolive_xception.yaml #hb=30
+eval_lumen_nolive_xception | .venv/bin/python -m dcfg.eval.evaluate --run lumen_nolive_xception --detector xception --conditions all --split test --frontend runs/lumen_nolive_xception/frontend.pt #hb=30
+lumen_frozensensor_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_frozensensor_xception.yaml #hb=30
+eval_lumen_frozensensor_xception | .venv/bin/python -m dcfg.eval.evaluate --run lumen_frozensensor_xception --detector xception --conditions all --split test --frontend runs/lumen_frozensensor_xception/frontend.pt #hb=30
+findings_group3 | .venv/bin/python ops/jobs/group_findings.py --group 3 #noheartbeat
+lumen_xception_s43 | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_xception_s43.yaml #hb=30
+eval_lumen_xception_s43 | .venv/bin/python -m dcfg.eval.evaluate --run lumen_xception_s43 --detector xception --conditions all --split test --frontend runs/lumen_xception_s43/frontend.pt #hb=30
+lumen_xception_s44 | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_xception_s44.yaml #hb=30
+eval_lumen_xception_s44 | .venv/bin/python -m dcfg.eval.evaluate --run lumen_xception_s44 --detector xception --conditions all --split test --frontend runs/lumen_xception_s44/frontend.pt #hb=30
+augft_xception_s43 | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/augft_xception_s43.yaml #hb=30
+eval_augft_xception_s43 | .venv/bin/python -m dcfg.eval.evaluate --run augft_xception_s43 --detector xception --conditions all --split test --detector-ckpt runs/augft_xception_s43/detector.pt #hb=30
+augft_xception_s44 | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/augft_xception_s44.yaml #hb=30
+eval_augft_xception_s44 | .venv/bin/python -m dcfg.eval.evaluate --run augft_xception_s44 --detector xception --conditions all --split test --detector-ckpt runs/augft_xception_s44/detector.pt #hb=30
+findings_group4 | .venv/bin/python ops/jobs/group_findings.py --group 4 #noheartbeat
