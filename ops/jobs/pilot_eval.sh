@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Pilot evaluation on the VALIDATION split only (never test, never results/raw).
-#   bash ops/jobs/pilot_eval.sh <run_id>      e.g. pilot_base_xception | pilot_dcfg_xception | pilot_fixed_xception | pilot_augft_xception
+#   bash ops/jobs/pilot_eval.sh <run_id>      e.g. pilot_base_xception | pilot_{dcfg,fixed,augft}_xception | design-selection runs
+#   pilot_{jointft,dcfgcons,dcfgfilm,dcfgfilmlite}_xception (frontend.pt incl. FiLM weights; jointft also detector.pt)
 # Conditions: clean, noise_s10, blur_s3, webp_q20, mixed_heavy (+ c40 only if c40 VAL frames exist in the JSON, else skipped).
 # Output: results/pilot/eval/<run_id>__<cond>.json + scores/<run_id>__<cond>.npz (per-frame scores for paired comparisons).
 set -euo pipefail

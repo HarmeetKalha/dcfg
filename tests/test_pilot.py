@@ -265,7 +265,8 @@ def test_pilot_excluded_from_paper_reports(tmp_path, monkeypatch):
 
 def test_no_analysis_module_globs_pilot():
     for p in (REPO_ROOT / "src/dcfg/analysis").glob("*.py"):
-        assert "results/pilot" not in p.read_text() and "runs/pilot" not in p.read_text(), p
+        t = p.read_text()
+        assert "results/pilot" not in t and "runs/pilot" not in t and "results/pilot/design_selection" not in t, p
 
 
 # ------------------------------------------------------------------ preprocess / rearrange
@@ -300,3 +301,22 @@ def test_preprocess_split_option_and_rearrange_guard(tmp_path):
     (fr / "original_sequences/youtube/c23/frames/0/001.png").write_bytes(b"x")
     r = subprocess.run(cmd, capture_output=True, text=True)
     assert r.returncode != 0 and "refusing" in r.stderr
+
+
+def test_ci_overlap_logic_regression():
+    # pilot numbers: dcfg 0.815 [0.795, 0.834] vs augft 0.899 [0.879, 0.917] are DISJOINT (was reported as overlapping)
+    assert not pr.cis_overlap((0.795, 0.834), (0.879, 0.917))
+    assert not pr.cis_overlap((0.879, 0.917), (0.795, 0.834))  # symmetric
+    assert pr.cis_overlap((0.795, 0.834), (0.80, 0.85))        # overlapping case
+    assert pr.cis_overlap((0.80, 0.90), (0.85, 0.86))          # nested
+    assert pr.cis_overlap((0.1, 0.2), (0.2, 0.3))              # touching counts as overlap
+
+
+def test_verdict_overlap_line_uses_disjointness():
+    pt, rng = {}, np.random.default_rng(0)
+    res = {"deg_boot": {"dcfg": 0.815 + rng.normal(0, 0.01, 2000), "augft": 0.899 + rng.normal(0, 0.01, 2000),
+                        "fixed": 0.80 + rng.normal(0, 0.01, 2000)}}
+    res["deg_point"] = {k: float(v.mean()) for k, v in res["deg_boot"].items()}
+    res["point"] = {}
+    _, _, line = pr.verdict(res, [])
+    assert "dcfg vs augft: degraded-mean CIs do NOT overlap" in line and "dcfg vs fixed: degraded-mean CIs overlap" in line

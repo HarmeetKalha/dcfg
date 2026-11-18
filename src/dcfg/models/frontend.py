@@ -5,6 +5,7 @@ import torch
 from torch import Tensor, nn
 
 from .dct import BlockDCT, rgb_to_ycbcr, ycbcr_to_rgb
+from .film import FiLMBank
 from .fixed import FixedGate
 from .gate import FrequencyGate, log_energy
 from .sensor import DegradationSensor
@@ -29,15 +30,23 @@ class FrontEnd(nn.Module):
     ``sensor_amp`` (default True) lets the sensor CNN use fp16 autocast on CUDA only.
     The rest of the module runs in fp32 with autocast disabled and returns the input dtype.
     ``forward(x01) -> (y01, w)`` with w of shape (B,3,8,8).
+
+    Optional ``film`` (a :class:`FiLMBank`, dcfg gate only): maps the sensor embedding to per-site FiLM
+    parameters for the detector. ``forward_full(x01) -> (y01, w, film_params|None)`` also returns them
+    (the detector-side hooks that apply them live in ``dcfg.detectors.adapter.FilmHooks``).
     """
 
     def __init__(self, gate_kind: str = "dcfg", sensor: DegradationSensor | None = None,
-                 freeze_sensor: bool = False, sensor_amp: bool = True) -> None:
+                 freeze_sensor: bool = False, sensor_amp: bool = True,
+                 film: FiLMBank | None = None) -> None:
         super().__init__()
         if gate_kind not in GATE_KINDS:
             raise ValueError(f"gate_kind must be one of {GATE_KINDS}")
         self.gate_kind = gate_kind
         self.sensor_amp = sensor_amp
+        if film is not None and gate_kind != "dcfg":
+            raise ValueError("FiLM is conditioned on the sensor embedding: needs gate_kind='dcfg'")
+        self.film = film
         self.dct = BlockDCT()
         self.sensor: DegradationSensor | None = None
         self.gate: nn.Module
@@ -70,16 +79,24 @@ class FrontEnd(nn.Module):
         return self.sensor.embed(x)
 
     def forward(self, x01: Tensor) -> tuple[Tensor, Tensor]:
+        y, w, _ = self.forward_full(x01)
+        return y, w
+
+    def forward_full(self, x01: Tensor) -> tuple[Tensor, Tensor, dict[str, tuple[Tensor, Tensor]] | None]:
         in_dtype = x01.dtype
         with torch.autocast(device_type=x01.device.type, enabled=False):
             x = x01.float()
             coef = self.dct(rgb_to_ycbcr(x))
+            film_params = None
             if self.gate_kind == "dcfg":
                 assert self.sensor is not None
-                w = self.gate(log_energy(coef), self._embed(x))
+                emb = self._embed(x)
+                w = self.gate(log_energy(coef), emb)
+                if self.film is not None:
+                    film_params = self.film(emb)
             elif self.gate_kind == "nosensor":
                 w = self.gate(log_energy(coef))
             else:
                 w = self.gate(x.shape[0])
             y = ycbcr_to_rgb(self.dct.inverse(coef * w[:, :, None, None]))
-            return y.clamp(0, 1).to(in_dtype), w
+            return y.clamp(0, 1).to(in_dtype), w, film_params

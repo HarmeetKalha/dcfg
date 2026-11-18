@@ -48,6 +48,14 @@ class DummyDetector(nn.Module):
     def forward(self, x):
         return self.model(x).squeeze(-1)
 
+    def forward_with_features(self, x):
+        feat = self.model[:5](x)
+        return self.model[5](feat).squeeze(-1), feat
+
+    def film_sites(self):
+        """Four distinct 4-channel outputs (conv, bn, relu, pool) standing in for entry/mid4/mid8/exit."""
+        return {k: (self.model[i], 4) for i, k in enumerate(("entry", "mid4", "mid8", "exit"))}
+
     def freeze(self):
         for p in self.parameters():
             p.requires_grad_(False)

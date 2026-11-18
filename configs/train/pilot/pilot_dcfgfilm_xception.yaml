@@ -1,0 +1,15 @@
+# DESIGN-SELECTION PILOT (not paper numbers): Xception, seed 42, batch 32, TrainDegradation, epoch_mode full, real 30-epoch
+# cosine horizon, stops after 5 epochs. Isolated: pilot: true, runs/pilot/<id>, never in results/raw.
+# dcfg_film: dcfg_cons + sensor-conditioned FiLM at entry/block7/block11/exit (MLP 128-256-out, zero-init).
+base: ../base.yaml
+run_id: pilot_dcfgfilm_xception
+variant: dcfg_film
+detector: xception
+seed: 42
+batch_size: 32
+consistency: {kl: 1.0, feat: 1.0}   # lambda_kl = lambda_feat = 1.0
+pilot: true
+stop_after_epochs: 5
+timing_sync: true
+run_dir: runs/pilot/pilot_dcfgfilm_xception
+wandb_id: pilot_dcfgfilm_xception_r1

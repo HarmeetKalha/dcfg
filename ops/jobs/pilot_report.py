@@ -105,6 +105,11 @@ def paired_delta(res: dict[str, Any], a: str, b: str, cond: str | None) -> tuple
     return float(d), lo, hi
 
 
+def cis_overlap(a: tuple[float, float], b: tuple[float, float]) -> bool:
+    """True iff the closed intervals share a point (disjoint if either lies entirely above the other)."""
+    return not (a[0] > b[1] or b[0] > a[1])
+
+
 def verdict(res: dict[str, Any], deg_conds: list[str], top: str = "dcfg", others: tuple[str, ...] = ("augft", "fixed")
             ) -> tuple[str, str, str]:
     """(YES|NO|MIXED, paired-CI line, plain-CI-overlap line).
@@ -124,9 +129,8 @@ def verdict(res: dict[str, Any], deg_conds: list[str], top: str = "dcfg", others
         losses.append(n_l > 0)
         lines.append(f"{top}-{o}: degraded-mean {dm[0]:+.4f} [{dm[1]:+.4f}, {dm[2]:+.4f}]; per-condition CI>0 in {n_w}, "
                      f"CI<0 in {n_l} of {len(cl)}")
-        a_lo = pct(res["deg_boot"][top])[0]
-        o_hi = pct(res["deg_boot"][o])[1]
-        overlap.append(f"{top} vs {o}: degraded-mean CIs {'do NOT overlap' if a_lo > o_hi else 'overlap'}")
+        a_ci, o_ci = pct(res["deg_boot"][top]), pct(res["deg_boot"][o])
+        overlap.append(f"{top} vs {o}: degraded-mean CIs {'overlap' if cis_overlap(a_ci, o_ci) else 'do NOT overlap'}")
     if not wins:
         return "NO", "no comparison available", "no comparison available"
     v = "YES" if all(wins) and not any(losses) else ("NO" if not any(wins) else "MIXED")

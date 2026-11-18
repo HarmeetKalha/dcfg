@@ -9,7 +9,7 @@
 * The ``val`` split is never written to ``results/raw`` (Test numbers for the paper come only
   from there); ``--split val`` requires an explicit ``--out-dir`` elsewhere.
 * ``--frontend frontend.pt`` (from ``dcfg.train.train_frontend``) puts the trained module before the
-  frozen detector; ``--detector-ckpt detector.pt`` loads fine-tuned detector weights (augft/jointft).
+  frozen detector (FiLM variants dcfg_film/dcfg_filmlite also apply their FiLM hooks); ``--detector-ckpt detector.pt`` loads fine-tuned detector weights (augft/jointft).
   ``--out-dir`` is the results-dir override (tests use a tmp dir).
 * Scores are P(fake) = sigmoid(adapter logit) (see ``dcfg.detectors.adapter``), fp32 by default.
 """
@@ -293,11 +293,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     hb = Heartbeat(Path(a.runs_dir) / a.run if a.runs_dir else Path(env_dir) if env_dir else RUNS_ROOT / a.run)
     commit = dfb_commit()
 
+    hooks = None
+    if front is not None and front.film is not None:  # dcfg_film / dcfg_filmlite: FiLM from the sensor embedding
+        from dcfg.detectors.adapter import FilmHooks
+        hooks = FilmHooks(det, front.film.sites)
+
     def model(x01: torch.Tensor) -> torch.Tensor:
-        """Front-end (if any) -> detector.normalize (applied once, after the front-end) -> logit."""
+        """Front-end (if any) -> detector.normalize (applied once, after the front-end) -> logit.
+        FiLM variants apply the detector-side FiLM hooks with the parameters of this batch."""
+        params = None
         if front is not None:
-            x01 = front(x01)[0]
-        return det(det.normalize(x01))
+            x01, _, params = front.forward_full(x01)
+        if hooks is None:
+            return det(det.normalize(x01))
+        with hooks.conditioned(params):
+            return det(det.normalize(x01))
 
     for cond in todo:
         t0 = time.time()

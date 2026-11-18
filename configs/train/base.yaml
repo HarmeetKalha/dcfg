@@ -1,6 +1,6 @@
 # Base training config (PLAN 7.2, 7.4, 7.5). Variant configs set `base: base.yaml` and override.
 run_id: null            # required in the variant config, e.g. dcfg_xception
-variant: dcfg           # dcfg | fixed | nosensor | dcfg_nolive | augft | dcfg_jointft
+variant: dcfg           # dcfg | fixed | nosensor | dcfg_nolive | augft | dcfg_jointft | dcfg_cons | dcfg_film | dcfg_filmlite
 detector: xception      # xception | effnb4 | f3net | ucf  (registry names)
 detector_weights: null  # null -> DFB default weights
 seed: 42
@@ -43,3 +43,5 @@ pilot: false            # true -> run tagged pilot in all metadata + W&B; never 
 stop_after_epochs: null # pilot: finalize after this many epochs while the LR schedule keeps the max_epochs horizon
 timing_sync: false      # true -> torch.cuda.synchronize() each step for exact compute_s (pilot); small overhead
 resource_interval_s: 30 # resource sampler period (resources.csv, W&B res/*)
+# consistency loss (dcfg_cons / dcfg_film / dcfg_filmlite; null -> {kl: 1.0, feat: 1.0} for those variants, off otherwise)
+consistency: null

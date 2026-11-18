@@ -23,7 +23,7 @@ Degraded mean = mean over noise_s10, blur_s3, webp_q20, mixed_heavy (synthetic d
 **dcfg beats augft and fixed beyond the CIs on degraded conditions: MIXED**
 
 - Paired-CI basis: dcfg-augft: degraded-mean -0.0839 [-0.0984, -0.0684]; per-condition CI>0 in 0, CI<0 in 4 of 4; dcfg-fixed: degraded-mean +0.0160 [+0.0063, +0.0280]; per-condition CI>0 in 2, CI<0 in 0 of 4
-- Plain CI-overlap view: dcfg vs augft: degraded-mean CIs overlap; dcfg vs fixed: degraded-mean CIs overlap
+- Plain CI-overlap view: dcfg vs augft: degraded-mean CIs do NOT overlap (0.8149 [0.7951, 0.8341] vs 0.8989 [0.8793, 0.9171]; corrected 2026-11-17, generator bug fixed); dcfg vs fixed: degraded-mean CIs overlap
 - Rule: YES = degraded-mean delta CI > 0 against both and no degraded condition with delta CI < 0; NO = degraded-mean delta CI not > 0 against either; MIXED = otherwise.
 
 ## (c) GPU / CPU summary (training phase only; validation excluded)

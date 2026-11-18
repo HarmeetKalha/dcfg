@@ -47,3 +47,13 @@ pilot_eval_dcfg | bash ops/jobs/pilot_eval.sh pilot_dcfg_xception #hb=30
 pilot_eval_fixed | bash ops/jobs/pilot_eval.sh pilot_fixed_xception #hb=30
 pilot_eval_augft | bash ops/jobs/pilot_eval.sh pilot_augft_xception #hb=30
 pilot_report | .venv/bin/python ops/jobs/pilot_report.py #noheartbeat
+pilot_jointft_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/pilot/pilot_jointft_xception.yaml #hb=30
+pilot_dcfgcons_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/pilot/pilot_dcfgcons_xception.yaml #hb=30
+pilot_dcfgfilm_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/pilot/pilot_dcfgfilm_xception.yaml #hb=30
+pilot_dcfgfilmlite_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/pilot/pilot_dcfgfilmlite_xception.yaml #hb=30
+pilot_ds_overhead | .venv/bin/python -m dcfg.analysis.overhead --design-selection --out results/pilot/design_selection/overhead.json #noheartbeat
+pilot_eval_jointft | bash ops/jobs/pilot_eval.sh pilot_jointft_xception #hb=30
+pilot_eval_dcfgcons | bash ops/jobs/pilot_eval.sh pilot_dcfgcons_xception #hb=30
+pilot_eval_dcfgfilm | bash ops/jobs/pilot_eval.sh pilot_dcfgfilm_xception #hb=30
+pilot_eval_dcfgfilmlite | bash ops/jobs/pilot_eval.sh pilot_dcfgfilmlite_xception #hb=30
+pilot_ds_report | .venv/bin/python ops/jobs/design_selection_report.py --no-overhead-run #noheartbeat

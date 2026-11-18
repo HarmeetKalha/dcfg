@@ -4,7 +4,12 @@
 
 Variants: ``dcfg`` (LIVE-pretrained sensor + gate, frozen detector), ``fixed``, ``nosensor``,
 ``dcfg_nolive`` (random sensor), ``augft`` (no module, detector fine-tuned on the degraded data),
-``dcfg_jointft`` (module + detector fine-tuned).
+``dcfg_jointft`` (module + detector fine-tuned), and the design-selection variants (frozen detector, all use
+the consistency loss of ``dcfg.train.consistency``): ``dcfg_cons`` (dcfg + consistency), ``dcfg_film`` (+ FiLM at
+entry/block7/block11/exit of Xception, MLP 128-256), ``dcfg_filmlite`` (FiLM at entry/exit only, MLP 128-64).
+FiLM MLP params train in the gate param group (lr_gate). The teacher (clean image, FiLM hooks disabled, no_grad,
+eval mode) and the student (front-end(degraded), FiLM on) share one detector forward helper, hence the same
+normalization and autocast mode.
 
 Design notes
 ------------
@@ -30,6 +35,7 @@ Design notes
 from __future__ import annotations
 
 import argparse
+import contextlib
 import csv
 import hashlib
 import json
@@ -53,9 +59,11 @@ from dcfg.data.degradations import (TrainDegradation, load_conditions, load_val_
 from dcfg.data.ffpp import DFBJsonSource, FrameRecord
 from dcfg.eval.evaluate import ConditionDataset, condition_comp, git_commit, predict
 from dcfg.eval.metrics import frame_auc
+from dcfg.models.film import FILM_KINDS, FiLMBank
 from dcfg.models.frontend import FrontEnd
 from dcfg.models.sensor import DegradationSensor
 from dcfg.paths import REPO_ROOT, RUNS_ROOT
+from dcfg.train import consistency as cons
 from dcfg.utils.heartbeat import Heartbeat
 from dcfg.utils.resources import ResourceSampler, StepTimer, write_summary
 from dcfg.utils.seed import seed_everything
@@ -78,12 +86,17 @@ def config_diff(old: dict[str, Any], new: dict[str, Any]) -> dict[str, tuple[Any
     return {k: (old.get(k), new.get(k)) for k in sorted(keys) if old.get(k) != new.get(k)}
 
 
-VARIANTS = ("dcfg", "fixed", "nosensor", "dcfg_nolive", "augft", "dcfg_jointft")
+VARIANTS = ("dcfg", "fixed", "nosensor", "dcfg_nolive", "augft", "dcfg_jointft",
+            "dcfg_cons", "dcfg_film", "dcfg_filmlite")
+#: variants that use the consistency loss (clean teacher, frozen detector); config ``consistency`` defaults to 1/1
+CONSISTENCY_VARIANTS = ("dcfg_cons", "dcfg_film", "dcfg_filmlite")
+FILM_VARIANTS = {"dcfg_film": "film", "dcfg_filmlite": "filmlite"}
 TRAIN_DETECTOR = ("augft", "dcfg_jointft")
 #: UCF's own specific-forgery labels (DFB ucf.yaml label_dict): real 0, DF 1, F2F 2, FS 3, NT 4.
 SPE_LABEL = {"FF-real": 0, "FF-DF": 1, "FF-F2F": 2, "FF-FS": 3, "FF-NT": 4}
 GATE_KIND = {"dcfg": "dcfg", "dcfg_nolive": "dcfg", "dcfg_jointft": "dcfg", "fixed": "fixed",
-             "nosensor": "nosensor", "augft": None}
+             "nosensor": "nosensor", "augft": None, "dcfg_cons": "dcfg", "dcfg_film": "dcfg",
+             "dcfg_filmlite": "dcfg"}
 
 
 # ----------------------------------------------------------------------------- config
@@ -115,8 +128,9 @@ def build_detector(cfg: dict[str, Any], device: str | torch.device) -> nn.Module
     return Detector(cfg["detector"], weights_path=cfg.get("detector_weights"), device=device)
 
 
-def build_frontend(cfg: dict[str, Any]) -> FrontEnd | None:
-    """Front-end for the variant (None for augft). Loads LIVE sensor weights for dcfg/dcfg_jointft."""
+def build_frontend(cfg: dict[str, Any], detector: Any = None) -> FrontEnd | None:
+    """Front-end for the variant (None for augft). Loads LIVE sensor weights for dcfg/dcfg_jointft.
+    FiLM variants also need the ``detector`` (site channel counts are read from its modules)."""
     v = cfg["variant"]
     kind = GATE_KIND[v]
     if kind is None:
@@ -129,18 +143,53 @@ def build_frontend(cfg: dict[str, Any]) -> FrontEnd | None:
             if not sw.exists():
                 raise FileNotFoundError(f"sensor weights {sw} missing (variant {v} needs LIVE pretraining)")
             sensor.load_backbone(sw)
+    film = None
+    if v in FILM_VARIANTS:
+        if detector is None:
+            raise ValueError(f"variant {v} needs the detector to size the FiLM bank")
+        sites = detector.film_sites()
+        film = FiLMBank(FILM_VARIANTS[v], {k: c for k, (_, c) in sites.items()})
     return FrontEnd(kind, sensor=sensor, freeze_sensor=bool(cfg["freeze_sensor"]),
-                    sensor_amp=bool(cfg["sensor_amp"]))
+                    sensor_amp=bool(cfg["sensor_amp"]), film=film)
 
 
 class Pipeline(nn.Module):
     """x01 -> [front-end] -> detector.normalize -> detector -> logit. Returns ``(logit (B,), w or None)``."""
 
     def __init__(self, frontend: FrontEnd | None, detector: nn.Module, amp: bool, train_detector: bool,
-                 native_ucf: bool = False) -> None:
+                 native_ucf: bool = False, film_hooks: Any = None) -> None:
         super().__init__()
         self.frontend, self.detector = frontend, detector
         self.amp, self.train_detector, self.native_ucf = amp, train_detector, native_ucf
+        self.film_hooks = film_hooks  # adapter.FilmHooks or None (not a Module: holds no parameters)
+
+    def _film(self, params: Any) -> Any:
+        return self.film_hooks.conditioned(params) if self.film_hooks is not None else contextlib.nullcontext()
+
+    def _detect(self, x01: Tensor) -> tuple[Tensor, Tensor, tuple]:
+        """The ONE detector forward used by teacher and student: normalize (once) -> autocast -> logit + features.
+        Returns ``(logit fp32, feat fp32, (z dtype, autocast flag))``; the last item lets callers assert that
+        both passes ran in the same normalization / precision."""
+        z = self.detector.normalize(x01)
+        use = self.amp and z.is_cuda
+        with torch.autocast("cuda", dtype=torch.float16, enabled=use):
+            logit, feat = self.detector.forward_with_features(z)
+        return logit.float(), feat.float(), (z.dtype, use)
+
+    def consistency_forward(self, x_deg01: Tensor, x_clean01: Tensor) -> dict[str, Any]:
+        """Student on front-end(degraded) with FiLM, teacher = the same frozen detector on the clean image
+        (no_grad, eval mode, FiLM hooks disabled). Returns logits/features of both plus the gate weights."""
+        assert not self.train_detector and not self.detector.training, "consistency needs a frozen eval-mode detector"
+        assert self.frontend is not None
+        with torch.no_grad():
+            ctx = self.film_hooks.disabled() if self.film_hooks is not None else contextlib.nullcontext()
+            with ctx:
+                t_logit, t_feat, t_meta = self._detect(x_clean01)
+        y, w, fp = self.frontend.forward_full(x_deg01)
+        with self._film(fp):
+            s_logit, s_feat, s_meta = self._detect(y)
+        assert t_meta == s_meta, f"teacher/student normalization or autocast differ: {t_meta} vs {s_meta}"
+        return {"s_logit": s_logit, "s_feat": s_feat, "t_logit": t_logit, "t_feat": t_feat, "w": w}
 
     def native_ucf_loss(self, x01: Tensor, label: Tensor, label_spe: Tensor) -> Tensor:
         """UCF's own DeepfakeBench training loss (``get_losses(...)['overall']``).
@@ -161,11 +210,11 @@ class Pipeline(nn.Module):
         return losses["overall"].float()
 
     def forward(self, x01: Tensor) -> tuple[Tensor, Tensor | None]:
-        w = None
+        w, fp = None, None
         if self.frontend is not None:
-            x01, w = self.frontend(x01)
+            x01, w, fp = self.frontend.forward_full(x01)
         z = self.detector.normalize(x01)  # the one and only normalization
-        with torch.autocast("cuda", dtype=torch.float16, enabled=self.amp and z.is_cuda):
+        with self._film(fp), torch.autocast("cuda", dtype=torch.float16, enabled=self.amp and z.is_cuda):
             logit = self.detector(z)
         return logit.float(), w
 
@@ -189,13 +238,16 @@ def assert_detector_state(det: nn.Module, train_detector: bool) -> None:
 def save_frontend(path: Path, frontend: FrontEnd, cfg: dict[str, Any], extra: dict[str, Any]) -> None:
     """The artefact consumed by ``evaluate --frontend`` (weights incl. sensor; no LIVE file needed)."""
     _save_atomic({"gate_kind": frontend.gate_kind, "variant": cfg["variant"], "sensor_amp": frontend.sensor_amp,
+                  "film": frontend.film.meta() if frontend.film is not None else None,
                   "state_dict": frontend.state_dict(), "run_id": cfg["run_id"], **extra}, path)
 
 
 def load_frontend(path: str | os.PathLike[str], device: str | torch.device = "cpu") -> tuple[FrontEnd, dict]:
     """Rebuild a trained FrontEnd (eval mode, frozen) from ``frontend.pt``; returns (module, metadata)."""
     ck = torch.load(path, map_location="cpu", weights_only=False)
-    fe = FrontEnd(ck["gate_kind"], sensor_amp=ck.get("sensor_amp", True))
+    fm = ck.get("film")
+    fe = FrontEnd(ck["gate_kind"], sensor_amp=ck.get("sensor_amp", True),
+                  film=FiLMBank(fm["kind"], fm["channels"]) if fm else None)
     fe.load_state_dict(ck["state_dict"])
     fe.to(device).eval().requires_grad_(False)
     return fe, {k: v for k, v in ck.items() if k != "state_dict"}
@@ -237,20 +289,27 @@ class TrainDataset(Dataset):
     """Degraded uint8 CHW crops for one epoch slice; sample ``j`` is position ``offset + j`` of the epoch."""
 
     def __init__(self, source: DFBJsonSource, records: list[FrameRecord], order: np.ndarray, offset: int,
-                 seed: int, epoch: int, deg: TrainDegradation) -> None:
+                 seed: int, epoch: int, deg: TrainDegradation, return_clean: bool = False) -> None:
         self.source, self.records, self.order = source, records, order
         self.offset, self.seed, self.epoch, self.deg = offset, seed, epoch, deg
+        self.return_clean = return_clean
 
     def __len__(self) -> int:
         return len(self.order) - self.offset
 
-    def __getitem__(self, j: int) -> tuple[Tensor, Tensor, int, int]:
+    def __getitem__(self, j: int) -> tuple:
+        """``(degraded, label, ridx, spe_label)``; with ``return_clean`` a 5th item: the clean uint8 crop
+        (the same array as the degraded one when the sample is clean). The rng/degradation are unchanged."""
         pos = self.offset + j
         ridx = int(self.order[pos])
         rec = self.records[ridx]
-        img, _ = self.deg(self.source.load(rec), make_rng(self.seed, self.epoch, pos))
-        return (torch.from_numpy(np.ascontiguousarray(img)).permute(2, 0, 1),
-                torch.tensor(float(rec.label)), ridx, SPE_LABEL[rec.video.split("/")[0]])
+        clean = self.source.load(rec)
+        img, _ = self.deg(clean, make_rng(self.seed, self.epoch, pos))
+        out = (torch.from_numpy(np.ascontiguousarray(img)).permute(2, 0, 1),
+               torch.tensor(float(rec.label)), ridx, SPE_LABEL[rec.video.split("/")[0]])
+        if self.return_clean:
+            return out + (torch.from_numpy(np.ascontiguousarray(clean)).permute(2, 0, 1),)
+        return out
 
 
 def stratified_videos(records: list[FrameRecord], n: int | None, seed: int = 0) -> set[str] | None:
@@ -326,6 +385,11 @@ class Trainer:
             raise ValueError("config needs run_id")
         self.cfg = cfg
         self.variant = cfg["variant"]
+        if self.variant in CONSISTENCY_VARIANTS and not cfg.get("consistency"):
+            cfg["consistency"] = dict(cons.DEFAULT)  # recorded in the checkpoint config
+        self.cons = cons.parse_config(cfg.get("consistency"))
+        if self.cons is not None and self.variant not in CONSISTENCY_VARIANTS:
+            raise ValueError(f"the consistency loss is only supported for {CONSISTENCY_VARIANTS}")
         self.train_det = self.variant in TRAIN_DETECTOR
         self.pilot = bool(cfg.get("pilot", False))
         default_dir = RUNS_ROOT / "pilot" / cfg["run_id"] if self.pilot else RUNS_ROOT / cfg["run_id"]
@@ -353,10 +417,15 @@ class Trainer:
             det.freeze()
         else:
             det.requires_grad_(True)
-        self.frontend = build_frontend(cfg)
+        self.frontend = build_frontend(cfg, det)
         if self.frontend is not None:
             self.frontend.to(self.dev)
-        self.model = Pipeline(self.frontend, det, bool(cfg["amp"]), self.train_det, self.native_ucf).to(self.dev)
+        self.film_hooks = None
+        if self.frontend is not None and self.frontend.film is not None:
+            from dcfg.detectors.adapter import FilmHooks
+            self.film_hooks = FilmHooks(det, self.frontend.film.sites)
+        self.model = Pipeline(self.frontend, det, bool(cfg["amp"]), self.train_det, self.native_ucf,
+                              self.film_hooks).to(self.dev)
         self.det = det
         self.opt = self._make_optimizer()
         self.sched = torch.optim.lr_scheduler.LambdaLR(
@@ -381,13 +450,18 @@ class Trainer:
         self._sensor_params = [p for p in self.frontend.sensor.parameters() if p.requires_grad] \
             if self.frontend is not None and self.frontend.sensor is not None else []
         self._gate_params = list(self.frontend.gate.parameters()) if self.frontend is not None else []
+        self._film_params = list(self.frontend.film.parameters()) \
+            if self.frontend is not None and self.frontend.film is not None else []
 
     # -------------------------------------------------------------- setup
     def _make_optimizer(self) -> torch.optim.Optimizer:
         c, groups = self.cfg, []
         fe = self.frontend
         if fe is not None:
-            groups.append({"name": "gate", "params": list(fe.gate.parameters()), "lr": float(c["lr_gate"])})
+            # FiLM MLP (if any) shares the gate group / lr: same kind of module (small MLP, zero-init last layer)
+            groups.append({"name": "gate", "params": list(fe.gate.parameters())
+                           + (list(fe.film.parameters()) if fe.film is not None else []),
+                           "lr": float(c["lr_gate"])})
             if fe.sensor is not None and not fe.freeze_sensor:
                 groups.append({"name": "sensor", "params": list(fe.sensor.parameters()),
                                "lr": float(c["lr_sensor"])})
@@ -552,7 +626,8 @@ class Trainer:
 
     def _loader(self, epoch: int, order: np.ndarray, skip: int) -> DataLoader:
         nw = int(self.cfg["num_workers"])
-        ds = TrainDataset(self.source, self.records, order, skip * self.bs, int(self.cfg["seed"]), epoch, self.deg)
+        ds = TrainDataset(self.source, self.records, order, skip * self.bs, int(self.cfg["seed"]), epoch, self.deg,
+                          return_clean=self.cons is not None)
         return DataLoader(ds, batch_size=self.bs, shuffle=False, drop_last=True, num_workers=nw,
                           pin_memory=self.dev.type == "cuda", prefetch_factor=2 if nw else None)
 
@@ -580,11 +655,13 @@ class Trainer:
         loss_fn = nn.BCEWithLogitsLoss()
         log_every, accl, acc_n, acc_img, t_log = int(cfg["log_every"]), None, 0, 0, time.time()
         stats = torch.zeros(4, device=self.dev)  # nonfinite(sensor, gate), zero(sensor, gate) counts
-        gn = torch.zeros(2, device=self.dev)
+        gn = torch.zeros(3, device=self.dev)  # grad norms: sensor, gate, film
+        terms_acc: dict[str, Tensor] = {}
         self.phase = "train"
         sync = bool(cfg.get("timing_sync")) and self.dev.type == "cuda"
         t_epoch = time.time()
-        for xb, yb, ridx, spe_l in self._timed(loader):
+        for batch in self._timed(loader):
+            xb, yb, ridx, spe_l = batch[:4]
             t_step = time.perf_counter()
             b = st["step_in_epoch"]
             self._log_line("batches.log", f"{epoch} {b} {st['step']} {batch_hash(ridx)}")
@@ -592,18 +669,25 @@ class Trainer:
             y = yb.to(self.dev, non_blocking=True)
             if self.native_ucf:
                 loss = self.model.native_ucf_loss(x, y, spe_l.to(self.dev))
+            elif self.cons is not None:
+                xc = batch[4].to(self.dev, non_blocking=True).float().div_(255.0)
+                o = self.model.consistency_forward(x, xc)
+                loss, terms = cons.consistency_loss(o["s_logit"], o["s_feat"], o["t_logit"], o["t_feat"], y, self.cons)
+                for k, v in terms.items():
+                    terms_acc[k] = terms_acc.get(k, 0) + v
             else:
                 logit, _ = self.model(x)
                 loss = loss_fn(logit, y)
             self.opt.zero_grad(set_to_none=True)
             self.scaler.scale(loss).backward()
             self.scaler.unscale_(self.opt)
-            for i, ps in enumerate((self._sensor_params, self._gate_params)):
+            for i, ps in enumerate((self._sensor_params, self._gate_params, self._film_params)):
                 if ps:
                     n = _grad_norm(ps).to(self.dev)
                     gn[i] = n
-                    stats[i] += (~torch.isfinite(n)).float()
-                    stats[2 + i] += (n == 0).float()
+                    if i < 2:
+                        stats[i] += (~torch.isfinite(n)).float()
+                        stats[2 + i] += (n == 0).float()
             scale_before = self.scaler.get_scale()
             self.scaler.step(self.opt)
             self.scaler.update()
@@ -620,9 +704,10 @@ class Trainer:
             if st["step"] % int(cfg["frozen_check_every"]) == 0:
                 self.check_frozen()
             if st["step"] % log_every == 0 or st["step_in_epoch"] == self.spe:
-                self._log_train(epoch, accl, acc_n, acc_img, time.time() - t_log, stats, gn)
+                self._log_train(epoch, accl, acc_n, acc_img, time.time() - t_log, stats, gn, terms_acc)
                 accl, acc_n, acc_img, t_log = None, 0, 0, time.time()
                 stats.zero_()
+                terms_acc = {}
             if st["step"] % int(cfg["ckpt_every_steps"]) == 0:
                 self.save_last()
             self.hb.beat(st["step"], epoch=epoch, val_auc=st["best"], img_s=self._img_s,
@@ -659,7 +744,7 @@ class Trainer:
         return f"{int(left * self.bs / self._img_s)}s"
 
     def _log_train(self, epoch: int, accl: Tensor | None, n: int, imgs: int, dt: float, stats: Tensor,
-                   gn: Tensor) -> None:
+                   gn: Tensor, terms: dict[str, Tensor] | None = None) -> None:
         st = self.st
         loss = float(accl) / max(1, n) if accl is not None else float("nan")
         self._img_s = imgs / max(dt, 1e-9)
@@ -670,6 +755,10 @@ class Trainer:
                "gpu_mem_mb": f"{torch.cuda.max_memory_allocated() / 2**20:.0f}" if self.dev.type == "cuda" else 0,
                "gnorm_sensor": g[0], "gnorm_gate": g[1], "nonfinite_sensor": int(s[0]), "nonfinite_gate": int(s[1]),
                "zero_sensor": int(s[2]), "zero_gate": int(s[3])}
+        if self._film_params:
+            row["gnorm_film"] = g[2]
+        if terms:  # consistency variants: each loss term separately (unweighted means over the log window)
+            row |= {f"loss_{k}": f"{float(v) / max(1, n):.5f}" for k, v in terms.items()}
         self._csv_row("train_log.csv", row)
         self._wandb_log({f"train/{k}": float(v) for k, v in row.items() if k not in ("step", "epoch")}, st["step"])
         if s[0] or s[1]:

@@ -16,8 +16,9 @@ Contract
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator, Sequence
 
 import torch
 import torch.nn.functional as F
@@ -93,6 +94,40 @@ class Detector(nn.Module):
         cls = self.dfb_forward(x_normalized)["cls"].float()
         return cls[:, 1] - cls[:, 0]
 
+    def forward_with_features(self, x_normalized: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """``(logit (B,), feat (B, D))``: the logit of :meth:`forward` and the penultimate pooled features.
+
+        Xception: the 2048-d vector after ReLU + global average pooling, i.e. exactly the input of
+        ``last_linear`` (DFB ``backbone.last_emb``). Other detectors: DFB's ``feat`` output, global-average
+        pooled if 4-D (a generic fallback; check that it is the right layer before relying on it).
+        Features keep the autocast dtype; callers cast to fp32."""
+        out = self.dfb_forward(x_normalized)
+        cls = out["cls"].float()
+        bb = getattr(self.model, "backbone", None)
+        if self.name == "xception" and hasattr(bb, "last_emb"):
+            feat = bb.last_emb
+        else:
+            feat = out["feat"]
+            if feat.dim() == 4:
+                feat = feat.mean(dim=(2, 3))
+        return cls[:, 1] - cls[:, 0], feat
+
+    def film_sites(self) -> dict[str, tuple[nn.Module, int]]:
+        """``{site: (module whose OUTPUT is modulated, channels)}`` for FiLM (see ``dcfg.models.film``).
+
+        Xception only. Channels are read from the actual modules (last BatchNorm of a block)."""
+        if self.name != "xception":
+            raise NotImplementedError(f"FiLM sites are defined for xception only, not {self.name!r}")
+        bb = self.model.backbone
+
+        def chans(m: nn.Module) -> int:
+            if isinstance(m, nn.BatchNorm2d):
+                return int(m.num_features)
+            return int([x for x in m.modules() if isinstance(x, nn.BatchNorm2d)][-1].num_features)
+
+        mods = {"entry": bb.block3, "mid4": bb.block7, "mid8": bb.block11, "exit": bb.bn4}
+        return {k: (m, chans(m)) for k, m in mods.items()}
+
     @torch.no_grad()
     def predict_prob(self, x01: torch.Tensor) -> torch.Tensor:
         """Convenience: P(fake) for an RGB [0, 1] batch."""
@@ -113,3 +148,56 @@ class Detector(nn.Module):
     def train(self, mode: bool = True) -> "Detector":
         """Like ``nn.Module.train`` but a frozen detector always stays in eval mode."""
         return super().train(False if getattr(self, "_frozen", False) else mode)
+
+
+class FilmHooks:
+    """Forward hooks applying ``h <- h * (1 + d_gamma) + beta`` (per channel) at the detector's FiLM sites.
+
+    The hooks hold no parameters and never touch the detector's: they read ``(d_gamma, beta)`` from
+    ``self.params``, set only inside :meth:`conditioned`. Outside it (or inside :meth:`disabled`) they pass
+    the activations through untouched, so a frozen eval-mode detector stays exactly the plain detector
+    (used for the consistency teacher). (1 + d_gamma) is formed in fp32 and cast to the activation dtype;
+    d_gamma = beta = 0 gives exactly ``h``. Gradients flow through the frozen detector to d_gamma / beta."""
+
+    def __init__(self, detector: Any, sites: Sequence[str]) -> None:
+        avail = detector.film_sites()
+        self.params: dict[str, tuple[torch.Tensor, torch.Tensor]] | None = None
+        self.enabled = True
+        self.channels = {s: avail[s][1] for s in sites}
+        self.handles = [avail[s][0].register_forward_hook(self._make(s, avail[s][1])) for s in sites]
+
+    def _make(self, site: str, channels: int):
+        def hook(_m: nn.Module, _inp: Any, out: torch.Tensor) -> torch.Tensor | None:
+            if not self.enabled or self.params is None:
+                return None
+            dg, b = self.params[site]
+            assert out.shape[1] == channels and dg.shape == (out.shape[0], channels), \
+                f"FiLM site {site}: activation {tuple(out.shape)} vs params {tuple(dg.shape)}"
+            scale = (1.0 + dg.float()).to(out.dtype)[:, :, None, None]
+            return out * scale + b.to(out.dtype)[:, :, None, None]
+        return hook
+
+    @contextmanager
+    def conditioned(self, params: dict[str, tuple[torch.Tensor, torch.Tensor]] | None) -> Iterator[None]:
+        """Apply FiLM with ``params`` for detector calls inside the block (None = plain detector)."""
+        prev = self.params
+        self.params = params
+        try:
+            yield
+        finally:
+            self.params = prev
+
+    @contextmanager
+    def disabled(self) -> Iterator[None]:
+        """Hooks are pass-through inside the block, whatever ``params`` are set (teacher pass)."""
+        prev = self.enabled
+        self.enabled = False
+        try:
+            yield
+        finally:
+            self.enabled = prev
+
+    def remove(self) -> None:
+        for h in self.handles:
+            h.remove()
+        self.handles = []

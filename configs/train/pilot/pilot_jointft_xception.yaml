@@ -1,0 +1,11 @@
+# DESIGN-SELECTION PILOT (not paper numbers): Xception, seed 42, batch 32, TrainDegradation, epoch_mode full, real 30-epoch
+# cosine horizon, stops after 5 epochs. Isolated: pilot: true, runs/pilot/<id>, never in results/raw.
+# jointft = existing dcfg_jointft variant (module lr_gate 1e-3 / lr_sensor 1e-4, detector lr_detector 2e-5, BCE, detector in
+# train mode / BN batch stats as augft). Identical to configs/train/dcfg_jointft_xception.yaml except the pilot keys.
+base: ../dcfg_jointft_xception.yaml
+run_id: pilot_jointft_xception
+pilot: true
+stop_after_epochs: 5
+timing_sync: true
+run_dir: runs/pilot/pilot_jointft_xception
+wandb_id: pilot_jointft_xception_r1
