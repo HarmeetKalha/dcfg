@@ -22,7 +22,8 @@ import gen_matrix as gm  # noqa: E402
 
 SITES = {"xception": {"entry": ("block3", 728), "exit": ("bn4", 2048)},
          "f3net": {"entry": ("block3", 728), "exit": ("bn4", 2048)},
-         "efficientnetb4": {"entry": ("_blocks.9", 56), "exit": ("_bn1", 1792)}}
+         "efficientnetb4": {"entry": ("_blocks.9", 56), "exit": ("_bn1", 1792)},
+         "ucf": {"entry": ("block3", 728), "exit": ("bn4", 2048)}}
 
 
 # ------------------------------------------------------------------ variants / alias
@@ -104,7 +105,7 @@ def test_film_sites_modules_channels(dets, name):
     for site, (modname, ch) in SITES[name].items():
         mod, c = sites[site]
         assert c == ch
-        bb = "backbone.efficientnet." if name == "efficientnetb4" else "backbone."
+        bb = {"efficientnetb4": "backbone.efficientnet.", "ucf": "encoder_f."}.get(name, "backbone.")
         assert named[bb + modname] is mod
 
 
@@ -133,9 +134,63 @@ def test_lumen_identity_at_init(dets, name):
         hooks.remove()
 
 
-def test_ucf_sites_are_not_defined(dets):
-    with pytest.raises(NotImplementedError):
-        dets("ucf").film_sites()
+def test_ucf_feature_is_what_head_sha_classifies_on(dets):
+    d = dets("ucf")
+    z = d.normalize(torch.rand(2, 3, 256, 256))
+    with torch.no_grad():
+        logit, feat = d.forward_with_features(z)
+        assert feat.shape == (2, 256) and torch.equal(logit, d(z))
+        cls = d.model.head_sha.mlp(feat)  # pooled block_sha map -> head MLP == the logit source
+        assert torch.allclose(cls[:, 1] - cls[:, 0], logit, atol=1e-5)
+
+
+def test_ucf_teacher_pass_ignores_film_hooks(dets):
+    d = dets("ucf")
+    ch = {k: c for k, (_, c) in d.film_sites().items() if k in ("entry", "exit")}
+    fe = FrontEnd("dcfg", film=FiLMBank("filmlite", ch, hidden=LUMEN_HIDDEN["ucf"])).eval()
+    with torch.no_grad():
+        fe.film.fc2.weight.normal_(0, 0.05)
+    hooks = FilmHooks(d, fe.film.sites)
+    try:
+        pipe = tf.Pipeline(fe, d, amp=False, train_detector=False, film_hooks=hooks)
+        x = torch.rand(2, 3, 256, 256)
+        o = pipe.consistency_forward(x, x)
+        with torch.no_grad():
+            plain = d(d.normalize(x))
+        assert torch.equal(o["t_logit"], plain)  # teacher = plain detector despite non-zero FiLM params
+        assert (o["s_logit"] - plain).abs().max() > 1e-4  # student is modulated
+    finally:
+        hooks.remove()
+
+
+def test_ucf_hidden_from_choose_hidden_on_inference_path():
+    n_inf = 21_861_162 + 262_912 + 132_610  # encoder_f + block_sha + head_sha
+    h = choose_hidden(n_inf, [728, 2048])
+    assert h == LUMEN_HIDDEN["ucf"]
+    assert 3.0 <= 100 * (GATE_SENSOR_PARAMS + film_param_count([728, 2048], h)) / n_inf <= 4.0
+
+
+def test_train_s_banked_at_mid_epoch_checkpoint(data, tmp_path):  # noqa: F811
+    class Crash(Exception):
+        pass
+
+    class Crashing(tf.Trainer):
+        def after_step(self, step):
+            if step == 3:
+                raise Crash
+
+    cfg = cfg_for(data, tmp_path, "fixed", ckpt_every_steps=2)
+    with pytest.raises(Crash):
+        Crashing(cfg).train()
+    ck = torch.load(tmp_path / "run_fixed" / "last.pt", weights_only=False)
+    assert ck["state"]["step"] == 2 and ck["state"]["train_s"] > 0
+
+
+def test_frozen_sensor_excluded_from_trainable_mb(data, tmp_path):  # noqa: F811
+    live = tf.Trainer(cfg_for(data, tmp_path, "lumen")).trainable_state_dict()
+    fz = tf.Trainer(cfg_for(data, tmp_path, "lumen_frozensensor", run_dir=str(tmp_path / "fz"))).trainable_state_dict()
+    assert any(k.startswith("frontend.sensor.") for k in live)
+    assert not any(k.startswith("frontend.sensor.") for k in fz) and any(k.startswith("frontend.gate.") for k in fz)
 
 
 # ------------------------------------------------------------------ bnft

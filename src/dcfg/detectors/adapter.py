@@ -100,12 +100,17 @@ class Detector(nn.Module):
 
         Xception / F3Net: the 2048-d vector after ReLU + global average pooling, i.e. exactly the input of
         ``last_linear`` (DFB ``backbone.last_emb``); EfficientNet-B4: its 1792-d pooled ``last_emb`` (input of
-        ``last_layer``; dropout is off in the DFB config). Other detectors (UCF): DFB's ``feat`` output, global-average
+        ``last_layer``; dropout is off in the DFB config). UCF: DFB's ``feat`` output = the pooled ``block_sha`` map, i.e. exactly the 256-d input of ``head_sha``'s MLP that
+        produces the logit (head_sha.mlp(feat) == cls). Other detectors: DFB's ``feat`` output, global-average
         pooled if 4-D (a generic fallback; check that it is the right layer before relying on it).
         Features keep the autocast dtype; callers cast to fp32."""
         out = self.dfb_forward(x_normalized)
         cls = out["cls"].float()
         bb = getattr(self.model, "backbone", None)
+        if self.name == "ucf":  # explicit: the pooled block_sha map that head_sha's MLP classifies on
+            feat = out["feat"]
+            assert feat.dim() == 2 and feat.shape[1] == self.model.half_fingerprint_dim, tuple(feat.shape)
+            return cls[:, 1] - cls[:, 0], feat
         if self.name in ("xception", "f3net", "efficientnetb4") and hasattr(bb, "last_emb"):
             feat = bb.last_emb
         else:
@@ -123,7 +128,10 @@ class Detector(nn.Module):
         * efficientnetb4: ``entry`` = ``efficientnet._blocks[9]`` (56 ch, end of MBConv stage 3 = DFB's own
           ``block_part1`` boundary), ``exit`` = ``efficientnet._bn1`` (1792 ch, BN after ``_conv_head``, before the
           swish and the global pooling; the analogue of Xception's bn4).
-        * ucf: NOT DEFINED (ambiguous; see docs/DECISIONS.md), raises ``NotImplementedError``.
+        * ucf (user decision 2026-11-19): the forgery/specific encoder ``encoder_f`` (the only encoder on the
+          inference path: ``encoder_c`` is computed but never reaches the logit): ``entry`` = ``encoder_f.block3``
+          (728 ch), ``exit`` = ``encoder_f.bn4`` (2048 ch; ``adjust_channel`` + ``block_sha`` + ``head_sha`` follow),
+          plus ``mid4``/``mid8`` = ``encoder_f.block7``/``block11`` (design-selection only).
 
         Channels are read from the actual modules (last BatchNorm of a block)."""
         if self.name in ("xception", "f3net"):
@@ -132,6 +140,9 @@ class Detector(nn.Module):
         elif self.name == "efficientnetb4":
             eff = self.model.backbone.efficientnet
             mods = {"entry": eff._blocks[9], "exit": eff._bn1}
+        elif self.name == "ucf":
+            bb = self.model.encoder_f
+            mods = {"entry": bb.block3, "mid4": bb.block7, "mid8": bb.block11, "exit": bb.bn4}
         else:
             raise NotImplementedError(f"FiLM sites are not defined for {self.name!r}")
 

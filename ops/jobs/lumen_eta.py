@@ -7,7 +7,7 @@ Per-epoch time (train + val, minutes) = the MEASURED Xception pilot epoch time o
 (results/pilot/design_selection/report.md section 6 and the earlier pilots), scaled to another detector by
 ``img/s(Xception) / img/s(detector)`` of the same class:
   * lumen / lumen_nolive / lumen_frozensensor: lumen smoke img/s per detector (results/qa/lumen_smoke.json).
-    UCF has no lumen smoke (FiLM sites undecided): ASSUMPTION = phase-8 dcfg ratio ucf/xception.
+    If a detector has no lumen smoke: ASSUMPTION = phase-8 dcfg ratio ucf/xception.
   * lumen_nocons: pilot lumen epoch x (lumen / lumen_nocons Xception smoke img/s).
   * fixed / augft: phase-8 img/s per detector (results/qa/phase8_smoke.json); jointft, dcfg, dcfgcons: Xception only.
   * bnft: pilot augft epoch x (phase-8 augft Xception img/s / bnft smoke img/s).
@@ -126,8 +126,8 @@ def main(argv: list[str] | None = None) -> int:
     notes = ["Epoch time includes val; scaling by steady img/s ratios applies to the whole epoch (val share is similar across detectors).",
              "Test eval time = base_<det> logs; module variants add a small per-image cost not included. " + "; ".join(srcs),
              "lumen_frozensensor and lumen_nolive are timed as lumen (frozen sensor is slightly cheaper: conservative).",
-             "lumen_ucf: no smoke (UCF FiLM sites undecided), epoch time estimated from the phase-8 dcfg ucf/xception ratio. "
-             "augft_ucf uses UCF's native loss (phase-8 img/s).",
+             "lumen_ucf uses its measured smoke img/s when present in lumen_smoke.json (otherwise the phase-8 dcfg ratio, labelled "
+             "ASSUMPTION). augft_ucf uses UCF's native loss (phase-8 img/s).",
              "img/s: " + json.dumps({k: {d: round(x, 1) for d, x in v.items()} for k, v in rates.items()})]
     Path(a.out).write_text(markdown(res, notes))
     Path(a.out).with_suffix(".json").write_text(json.dumps(res, indent=1))

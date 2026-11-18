@@ -58,13 +58,13 @@ def smoke(root: Path, name: str, det: str, variant: str, steps: int, min_step: i
     return out
 
 
-def resume_check(root: Path) -> dict[str, Any]:
+def resume_check(root: Path, det: str = "xception") -> dict[str, Any]:
     import numpy as np
     from dcfg.data.ffpp import DFBJsonSource
     from dcfg.train.train_frontend import load_config
-    d = root / "resume_lumen"
+    d = root / ("resume_lumen" if det == "xception" else f"resume_lumen_{det}")
     shutil.rmtree(d, ignore_errors=True)
-    base = {"variant": "lumen", "run_id": "smoke_resume_lumen", "detector": "xception", "max_steps": 300, "log_every": 50,
+    base = {"variant": "lumen", "run_id": f"smoke_resume_lumen_{det}", "detector": det, "max_steps": 300, "log_every": 50,
             "ckpt_every_steps": 100, "warmup_epochs": 0, "heartbeat_s": 30}
     r1 = ps.run_trainer(_Ctx(), d, base, kill_at_lines=150)
     if not r1["killed"] or (d / "done.json").exists():
@@ -92,12 +92,12 @@ def markdown(res: dict[str, Any]) -> str:
         L.append(f"| {s['name']} | {s['detector']} | {s['variant']} | {f(ll['first'])} -> {f(ll['last'])} | {s['ckpt_written']} | "
                  f"{f(s['val_mean_auc'])} | {f(s['img_s_steady'], 1)} | {f(s['peak_vram_mb_allocated'], 0)} | "
                  f"{f(s['scaler_scale_min'], 0)} | {s['skipped_steps']} | {s['pass']} |")
-    r = res["resume"]
-    L += ["", "## Resume (lumen, xception)", "",
-          f"- pass: {r.get('pass')}; killed at ~{r.get('killed_at_lines')} steps (ckpt every 100), resumed to 300; "
-          f"repeated hashes {r.get('repeated_batch_hashes', 'n/a')}; missing steps {r.get('missing', 'n/a')}; "
-          f"hash conflicts {r.get('hash_conflicts', 'n/a')}; reference mismatches {r.get('ref_mismatches', 'n/a')}"]
-    L += ["", "## Notes", "", f"- UCF lumen not smoked: {res['ucf_note']}", f"- bnft trainable params (Xception): {res['bnft_params']:,}",
+    for det, r in res.get("resumes", {"xception": res.get("resume", {})}).items():
+        L += ["", f"## Resume (lumen, {det})", "",
+              f"- pass: {r.get('pass')}; killed at ~{r.get('killed_at_lines')} steps (ckpt every 100), resumed to 300; "
+              f"repeated hashes {r.get('repeated_batch_hashes', 'n/a')}; "
+              f"hash conflicts {r.get('hash_conflicts', 'n/a')}; reference mismatches {r.get('ref_mismatches', 'n/a')}"]
+    L += ["", "## Notes", "", f"- UCF: {res['ucf_note']}", f"- bnft trainable params (Xception): {res['bnft_params']:,}",
           f"- total GPU wall time of this job: {res['total_wall_min']:.1f} min", f"- overall pass: {res['pass']}"]
     return "\n".join(L) + "\n"
 
@@ -106,11 +106,25 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--root", default="/tmp/claude-1000/lumen_smoke")
     ap.add_argument("--qa-dir", default=str(REPO / "results/qa"))
+    ap.add_argument("--ucf", action="store_true", help="only lumen_ucf (300 steps + resume); merged into the existing lumen_smoke.json")
     a = ap.parse_args(argv)
     root, qa = Path(a.root), Path(a.qa_dir)
     root.mkdir(parents=True, exist_ok=True)
     qa.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
+    if a.ucf:
+        res = json.loads((qa / "lumen_smoke.json").read_text())
+        res.setdefault("resumes", {"xception": res.pop("resume", {})})
+        res["smokes"] = [s for s in res["smokes"] if s["name"] != "lumen_ucf"]
+        res["smokes"].append(smoke(root, "lumen_ucf", "ucf", "lumen", 300, 100))
+        res["resumes"]["ucf"] = resume_check(root, "ucf")
+        res["ucf_note"] = "lumen_ucf smoked separately (sites encoder_f.block3 + encoder_f.bn4, user decision 2026-11-19)."
+        res["total_wall_min"] += (time.time() - t0) / 60
+        res["pass"] = all(s["pass"] for s in res["smokes"]) and all(r.get("pass") for r in res["resumes"].values())
+        (qa / "lumen_smoke.json").write_text(json.dumps(res, indent=1, default=str))
+        (qa / "lumen_smoke.md").write_text(markdown(res))
+        print(f"ucf smoke: pass={res['smokes'][-1]['pass']} img/s={res['smokes'][-1]['img_s_steady']} resume={res['resumes']['ucf'].get('pass')}")
+        return 0
     plan = [("lumen_xception", "xception", "lumen", 300, 100), ("lumen_efficientnetb4", "efficientnetb4", "lumen", 300, 100),
             ("lumen_f3net", "f3net", "lumen", 300, 100), ("bnft_xception", "xception", "bnft", 100, 50),
             ("lumen_nocons_xception", "xception", "lumen_nocons", 100, 50)]
@@ -123,8 +137,8 @@ def main(argv: list[str] | None = None) -> int:
     resume = resume_check(root)
     from dcfg.detectors.adapter import Detector
     bn_params = Detector("xception", device="cpu", load_weights=False).freeze_except_bn()
-    res = {"root": str(root), "smokes": smokes, "resume": resume, "bnft_params": bn_params,
-           "ucf_note": "its FiLM sites are ambiguous (see docs/DECISIONS.md); stopped before implementing.",
+    res = {"root": str(root), "smokes": smokes, "resumes": {"xception": resume}, "bnft_params": bn_params,
+           "ucf_note": "lumen_ucf smoke added by --ucf (sites decided 2026-11-19: encoder_f.block3 + encoder_f.bn4).",
            "total_wall_min": (time.time() - t0) / 60}
     res["pass"] = all(s["pass"] for s in smokes) and bool(resume.get("pass"))
     (qa / "lumen_smoke.json").write_text(json.dumps(res, indent=1, default=str))

@@ -9,14 +9,19 @@
 | lumen_f3net | f3net | lumen | 0.6777 -> 0.5460 | True | 0.9100 | 160.6 | 4039 | 32768 | 1 | True |
 | bnft_xception | xception | bnft | 0.8583 -> 0.6033 | True | 0.9091 | 321.1 | 3076 | 65536 | 0 | True |
 | lumen_nocons_xception | xception | lumen_nocons | 0.4628 -> 0.3503 | True | 0.9087 | 252.9 | 3979 | 65536 | 0 | True |
+| lumen_ucf | ucf | lumen | 0.7628 -> 0.5605 | True | 0.8787 | 116.1 | 7033 | 65536 | 0 | True |
 
 ## Resume (lumen, xception)
 
-- pass: True; killed at ~150 steps (ckpt every 100), resumed to 300; repeated hashes 0; missing steps n/a; hash conflicts []; reference mismatches []
+- pass: True; killed at ~150 steps (ckpt every 100), resumed to 300; repeated hashes 0; hash conflicts []; reference mismatches []
+
+## Resume (lumen, ucf)
+
+- pass: True; killed at ~150 steps (ckpt every 100), resumed to 300; repeated hashes 0; hash conflicts []; reference mismatches []
 
 ## Notes
 
-- UCF lumen not smoked: its FiLM sites are ambiguous (see docs/DECISIONS.md); stopped before implementing.
+- UCF: lumen_ucf smoked separately (sites encoder_f.block3 + encoder_f.bn4, user decision 2026-11-19).
 - bnft trainable params (Xception): 55,552
-- total GPU wall time of this job: 8.8 min
+- total GPU wall time of this job: 13.2 min
 - overall pass: True

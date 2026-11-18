@@ -30,7 +30,7 @@ FILM_KINDS: dict[str, dict] = {
 }
 FilmParams = dict[str, tuple[Tensor, Tensor]]
 #: LUMEN FiLM MLP hidden width per detector (see :func:`choose_hidden`; Xception = the dcfg_filmlite pilot).
-LUMEN_HIDDEN: dict[str, int] = {"xception": 64, "efficientnetb4": 56, "f3net": 72}
+LUMEN_HIDDEN: dict[str, int] = {"xception": 64, "efficientnetb4": 56, "f3net": 72, "ucf": 64}
 #: gate (+LayerNorms) + sensor parameters of the dcfg FrontEnd (fixed; independent of the detector)
 GATE_SENSOR_PARAMS = 394_369
 

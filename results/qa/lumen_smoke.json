@@ -160,34 +160,92 @@
    "wall_s": 53.0,
    "tail": "",
    "pass": true
+  },
+  {
+   "name": "lumen_ucf",
+   "detector": "ucf",
+   "variant": "lumen",
+   "rc": 0,
+   "steps": 300,
+   "loss": {
+    "first": 0.76279,
+    "last": 0.5605,
+    "decreased": true,
+    "windows": 6
+   },
+   "ckpt_written": true,
+   "val_mean_auc": 0.8787292368340477,
+   "val_frames": {
+    "clean": 2017,
+    "jpeg_q50": 2017,
+    "jpeg_q30": 2017,
+    "blur_s2": 2017,
+    "noise_s10": 2017,
+    "mixed_heavy": 2017
+   },
+   "img_s_steady": 116.12,
+   "peak_vram_mb_allocated": 7033.0,
+   "scaler_scale_min": 65536.0,
+   "skipped_steps": 0,
+   "nonfinite_grad_windows": 0,
+   "aborted": false,
+   "wall_s": 143.5,
+   "tail": "",
+   "pass": true
   }
  ],
- "resume": {
-  "killed_at_lines": 150,
-  "ok": true,
-  "n_resumes": 1,
-  "resume_markers": [
-   {
-    "epoch": 0,
-    "step_in_epoch": 100,
-    "step": 100
-   }
-  ],
-  "steps_logged": 300,
-  "last_step": 299,
-  "missing_steps": [],
-  "hash_conflicts": [],
-  "ref_mismatches": [],
-  "repeated_batch_hashes": 0,
-  "counter_continues": true,
-  "reexecuted_steps": [
-   100,
-   149
-  ],
-  "pass": true
- },
  "bnft_params": 55552,
- "ucf_note": "its FiLM sites are ambiguous (see docs/DECISIONS.md); stopped before implementing.",
- "total_wall_min": 8.810355091094971,
- "pass": true
+ "ucf_note": "lumen_ucf smoked separately (sites encoder_f.block3 + encoder_f.bn4, user decision 2026-11-19).",
+ "total_wall_min": 13.232855343818665,
+ "pass": true,
+ "resumes": {
+  "xception": {
+   "killed_at_lines": 150,
+   "ok": true,
+   "n_resumes": 1,
+   "resume_markers": [
+    {
+     "epoch": 0,
+     "step_in_epoch": 100,
+     "step": 100
+    }
+   ],
+   "steps_logged": 300,
+   "last_step": 299,
+   "missing_steps": [],
+   "hash_conflicts": [],
+   "ref_mismatches": [],
+   "repeated_batch_hashes": 0,
+   "counter_continues": true,
+   "reexecuted_steps": [
+    100,
+    149
+   ],
+   "pass": true
+  },
+  "ucf": {
+   "killed_at_lines": 150,
+   "ok": true,
+   "n_resumes": 1,
+   "resume_markers": [
+    {
+     "epoch": 0,
+     "step_in_epoch": 100,
+     "step": 100
+    }
+   ],
+   "steps_logged": 300,
+   "last_step": 299,
+   "missing_steps": [],
+   "hash_conflicts": [],
+   "ref_mismatches": [],
+   "repeated_batch_hashes": 0,
+   "counter_continues": true,
+   "reexecuted_steps": [
+    100,
+    149
+   ],
+   "pass": true
+  }
+ }
 }

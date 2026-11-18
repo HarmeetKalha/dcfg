@@ -241,6 +241,10 @@ def run_lumen_overhead(device: str, detectors=DETECTORS, batches=(1, 32), warmup
                    "film_hidden": LUMEN_HIDDEN[name], "params_gate": n_gate, "params_sensor": n_sensor,
                    "params_film": n_film, "added_trainable_params": count_params(fe),
                    "added_pct_of_detector": 100.0 * count_params(fe) / n_det}
+        if name == "ucf":  # inference path = encoder_f + block_sha + head_sha (encoder_c, con_gan, *_spe are unused)
+            m = det.model
+            n_inf = count_params(m.encoder_f) + count_params(m.block_sha) + count_params(m.head_sha)
+            r |= {"detector_params_inference_path": n_inf, "added_pct_of_inference_path": 100.0 * count_params(fe) / n_inf}
         for b in batches:
             base_t, lum_t = time_module(plain, b, device, warmup, iters), time_module(lumen, b, device, warmup, iters)
             r[f"batch{b}"] = {"plain_ms_per_image": base_t["ms_per_image"], "lumen_ms_per_image": lum_t["ms_per_image"],
@@ -261,6 +265,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--iters", type=int, default=100)
     ap.add_argument("--design-selection", action="store_true", help="design-selection pilot overhead (needs --out)")
     ap.add_argument("--lumen", action="store_true", help="LUMEN overhead per detector (needs --out)")
+    ap.add_argument("--detectors", default=None, help="--lumen: comma list; entries are merged into an existing --out file")
     a = ap.parse_args(argv)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if a.lumen:
@@ -270,7 +275,12 @@ def main(argv: list[str] | None = None) -> int:
         for forbidden in ("raw", "tables", "figures"):
             if out.is_relative_to((RESULTS_ROOT / forbidden).resolve()):
                 raise SystemExit(f"refusing to write LUMEN overhead numbers into results/{forbidden}")
-        res = run_lumen_overhead(device, warmup=a.warmup, iters=a.iters)
+        dets = tuple(a.detectors.split(",")) if a.detectors else DETECTORS
+        res = run_lumen_overhead(device, detectors=dets, warmup=a.warmup, iters=a.iters)
+        if a.detectors and out.exists():  # merge into the existing file
+            old = json.loads(out.read_text())
+            old["detectors"].update(res["detectors"])
+            res = old
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(res, indent=2) + "\n")
         for k, r in res["detectors"].items():

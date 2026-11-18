@@ -765,6 +765,9 @@ class Trainer:
                 stats.zero_()
                 terms_acc = {}
             if st["step"] % int(cfg["ckpt_every_steps"]) == 0:
+                now = time.time()  # bank the elapsed partial epoch so train_s survives a resume
+                st["train_s"] = st.get("train_s", 0.0) + now - t_epoch
+                t_epoch = now
                 self.save_last()
             self.hb.beat(st["step"], epoch=epoch, val_auc=st["best"], img_s=self._img_s,
                          eta=self._eta())
@@ -921,7 +924,9 @@ class Trainer:
         detector (augft/jointft). Keys are prefixed by the part."""
         sd: dict[str, Tensor] = {}
         if self.frontend is not None:
-            sd |= {f"frontend.{k}": v for k, v in self.frontend.state_dict().items()}
+            frozen = self.frontend.freeze_sensor  # a frozen sensor is not trained: exclude it (like `params`)
+            sd |= {f"frontend.{k}": v for k, v in self.frontend.state_dict().items()
+                   if not (frozen and k.startswith("sensor."))}
         if self.bn_only:
             sd |= {f"bn.{k}": v for k, v in self.det.bn_state_dict().items()}
         if self.train_det:
