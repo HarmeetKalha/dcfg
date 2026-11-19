@@ -1,5 +1,7 @@
 # PROGRESS
 
+**LUMEN2 (2026-11-19): change of direction. Read docs/LUMEN2_BRIEF.md.**
+
 **Current phase:** 3/4 — GATE 2 passed; GATES 3, 4, 6 approved 2026-11-17; Phase 5.3 baseline eval running. GATE 1 PASSED 2026-11-16, GATE 7 approved 2026-11-16.
 **Last updated:** 2026-11-16
 
@@ -73,6 +75,9 @@ Order: A + C + E in parallel now, then B, D, F.
 
 - LUMEN MATRIX LAUNCHED 2026-11-19 02:34 IST (21:04 UTC 11-18): 50 jobs (23 train+eval pairs + 4 findings) appended to ops/queue.txt from results/qa/lumen_queue.txt. Reviewer GO (0 blockers); fixes applied (UCF sites per user: encoder_f.block3/bn4, MLP 64 = 3.43% of inference path; wall-time under resume; trainable_mb). 248 tests. ETA (results/qa/lumen_eta.md), finish IST likely / worst: G1 Nov 22 ~17:00 / Nov 26 ~00:40; G2 Nov 23 ~02:20 / Nov 26 ~18:20; G3 Nov 24 ~05:40 / Nov 28 ~23:00; G4 Nov 25 ~03:20 / Nov 30 ~16:45. findings_group<N> writes results/FINDINGS_group<N>.md + ntfy.
 - User confirmed 2026-11-19: EffB4 early FiLM site _blocks[9]; bnft_xception lr 1e-3 (gen_matrix now emits it by default; regeneration verified byte-identical).
+
+- CNN MATRIX PAUSED 2026-11-19 22:50 IST (17:20 UTC) by user: CNN LUMEN loses to augft on Xception (brief: docs/LUMEN2_BRIEF.md); CNN version will not be published. Runner stopped via SIGTERM; DCFG-Runner and DCFG-Watchdog scheduled tasks DISABLED (re-enable: schtasks.exe /change /tn DCFG-Runner /enable, same for DCFG-Watchdog, then schtasks.exe /run /tn DCFG-Runner). Interrupted job: lumen_efficientnetb4, last.pt at epoch index 5 (6th epoch), global step 32000, step_in_epoch 3285 (killed at ~33653; ~1650 steps redone on resume). Queue: 6 matrix jobs done (lumen/fixed/augft_xception + evals), 44 pending, no lines edited; all results untouched.
+- LUMEN2 step 2 (decision rules) recorded in DECISIONS.md + docs/LUMEN2_BRIEF.md; step 3: public GenD eval on 23 conditions (no training).
 
 ## Next
 - Session may be resumed with `claude --continue`. All work committed; nothing running in-process. Runner (Task Scheduler) handles downloads -> sensor_live -> preprocessing -> sensor_live_p10.

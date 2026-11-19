@@ -1,5 +1,6 @@
 # DCFG project — rules for Claude Code
 Plan: docs/PLAN.md. Progress: docs/PROGRESS.md (update at end of every session). Decisions/deviations: docs/DECISIONS.md.
+**LUMEN2 (2026-11-19): change of direction. Read docs/LUMEN2_BRIEF.md first.** CNN matrix paused.
 
 ## Locked decisions
 - Pluggable front-end before a FROZEN existing detector; gradients flow through the detector into the module.
