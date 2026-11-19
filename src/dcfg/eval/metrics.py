@@ -13,7 +13,7 @@ Conventions
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Callable, Sequence
 
 import numpy as np
 from scipy.stats import rankdata
@@ -164,3 +164,99 @@ def paired_bootstrap(a_scores: Sequence[float], b_scores: Sequence[float], label
     p = min(1.0, 2 * min((np.sum(d <= 0) + 1) / (len(d) + 1), (np.sum(d >= 0) + 1) / (len(d) + 1)))
     return PairedResult(float(delta), float(lo), float(hi), float(p), len(d))
 
+
+
+# ---------------------------------------------------------------------------------------------
+# Calibration / selective prediction / generic bootstrap helpers
+# ---------------------------------------------------------------------------------------------
+def auc_metric(probs: Sequence[float], labels: Sequence[int]) -> float:
+    """Frame ROC-AUC with the ``(probs, labels)`` argument order used by the helpers below."""
+    return _auc(np.asarray(labels).astype(int), np.asarray(probs, dtype=np.float64))
+
+
+def ece(probs: Sequence[float], labels: Sequence[int], n_bins: int = 15) -> float:
+    """Binary expected calibration error on the predicted fake-probability ``p``.
+
+    "Reliability on the positive-class probability": ``n_bins`` equal-width bins on [0, 1];
+    ECE = sum_b (n_b / N) * |mean(p in b) - mean(label in b)|. Bins are right-closed
+    ``(lo, hi]``, the first bin also includes 0 (the last includes 1). Empty bins are skipped.
+    """
+    p = np.asarray(probs, dtype=np.float64)
+    y = np.asarray(labels).astype(np.float64)
+    if p.size == 0:
+        return float("nan")
+    b = np.clip(np.ceil(p * n_bins).astype(int) - 1, 0, n_bins - 1)
+    total = 0.0
+    for k in range(n_bins):
+        m = b == k
+        c = int(m.sum())
+        if c:
+            total += c / p.size * abs(p[m].mean() - y[m].mean())
+    return float(total)
+
+
+def selective_auc(probs: Sequence[float], labels: Sequence[int], coverage: float) -> float:
+    """ROC-AUC on the most confident ``ceil(coverage * N)`` frames (confidence = |p - 0.5|).
+
+    Frames are ordered by confidence descending using a stable sort on the original index, so
+    ties at the cutoff keep the earlier frames (deterministic). NaN if the kept set has a
+    single class.
+    """
+    if not 0 < coverage <= 1:
+        raise ValueError("coverage must be in (0, 1]")
+    p = np.asarray(probs, dtype=np.float64)
+    y = np.asarray(labels).astype(int)
+    k = int(np.ceil(coverage * p.size - 1e-12))
+    order = np.argsort(-np.abs(p - 0.5), kind="stable")[:k]
+    return _auc(y[order], p[order])
+
+
+def bootstrap_metric(metric_fn: Callable[[np.ndarray, np.ndarray], float], scores: Sequence[float],
+                     labels: Sequence[int], video_ids: Sequence, n: int = 1000, seed: int = 0,
+                     alpha: float = 0.05) -> dict[str, float]:
+    """Video-resampled percentile bootstrap of ``metric_fn(scores, labels)`` for one model.
+
+    Returns dict(point, ci_low, ci_high). NaN replicates are dropped.
+    """
+    r = paired_bootstrap_metric(metric_fn, scores, scores, labels, video_ids, n, seed, alpha)
+    return dict(point=r["a"], ci_low=r["a_ci_low"], ci_high=r["a_ci_high"])
+
+
+def paired_bootstrap_metric(metric_fn: Callable[[np.ndarray, np.ndarray], float],
+                            scores_a: Sequence[float], scores_b: Sequence[float],
+                            labels: Sequence[int], video_ids: Sequence, n: int = 1000,
+                            seed: int = 0, alpha: float = 0.05) -> dict[str, float]:
+    """Paired video bootstrap of ``metric_fn(scores, labels)`` for models a and b.
+
+    Each replicate samples videos with replacement (all frames of a sampled video come along,
+    duplicates allowed) and evaluates both models on the same resample. Use
+    ``functools.partial`` to bind extra arguments (e.g. ``partial(selective_auc, coverage=.5)``).
+    Returns dict(delta = metric(a) - metric(b) on the full data, ci_low, ci_high of the delta,
+    a, b = full-data metrics, plus a_ci_low/a_ci_high/b_ci_low/b_ci_high).
+    """
+    labels = np.asarray(labels).astype(int)
+    a = np.asarray(scores_a, dtype=np.float64)
+    b = np.asarray(scores_b, dtype=np.float64)
+    if not (len(a) == len(b) == len(labels) == len(video_ids)):
+        raise ValueError("scores_a, scores_b, labels, video_ids must have equal length")
+    t = VideoTable.build(labels, video_ids)
+    nv = len(t.ids)
+    rng = np.random.default_rng(seed)
+    va, vb = metric_fn(a, labels), metric_fn(b, labels)
+    reps = np.full((n, 2), np.nan)
+    for i in range(n):
+        idx = np.concatenate([t.frame_idx[j] for j in rng.integers(0, nv, nv)])
+        reps[i] = metric_fn(a[idx], labels[idx]), metric_fn(b[idx], labels[idx])
+
+    def ci(x: np.ndarray) -> tuple[float, float]:
+        x = x[~np.isnan(x)]
+        if not len(x):
+            return float("nan"), float("nan")
+        lo, hi = np.percentile(x, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+        return float(lo), float(hi)
+
+    d_lo, d_hi = ci(reps[:, 0] - reps[:, 1])
+    a_lo, a_hi = ci(reps[:, 0])
+    b_lo, b_hi = ci(reps[:, 1])
+    return dict(delta=float(va - vb), ci_low=d_lo, ci_high=d_hi, a=float(va), b=float(vb),
+                a_ci_low=a_lo, a_ci_high=a_hi, b_ci_low=b_lo, b_ci_high=b_hi)
