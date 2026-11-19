@@ -56,12 +56,20 @@ def load_batch(path: Path) -> dict[str, int]:
     return {str(k): int(v) for k, v in (yaml.safe_load(path.read_text()) or {}).items()}
 
 
+#: bnft (BN-only tuning) default lr; user decision 2026-11-19 (DECISIONS.md): at the full-fine-tune lr 2e-5 the
+#: 55.6k BN affine params would be undertrained, so bnft uses the LUMEN gate lr.
+BNFT_LR = "1.0e-3"
+BNFT_LR_COMMENT = "# bnft: BN-only tuning at lr_detector 1e-3 (user decision 2026-11-19, see DECISIONS.md)"
+
+
 def config_text(run: dict[str, Any], batch: int) -> str:
     """Yaml for one run (merged over base.yaml by train_frontend.load_config)."""
     lines = [HEADER, "base: base.yaml", f"run_id: {run['run_id']}", f"variant: {run['variant']}",
              f"detector: {run['detector']}", f"seed: {run['seed']}", f"batch_size: {batch}"]
     if run["freeze_sensor"]:
         lines.append("freeze_sensor: true")
+    if run["variant"] == "bnft":
+        lines += [BNFT_LR_COMMENT, f"lr_detector: {BNFT_LR}"]
     return "\n".join(lines) + "\n"
 
 

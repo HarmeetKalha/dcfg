@@ -5,5 +5,5 @@ variant: bnft
 detector: xception
 seed: 42
 batch_size: 32
-# lr_detector overridden by hand 2026-11-19 (user decision, see DECISIONS.md): BN-only tuning at 1e-3
+# bnft: BN-only tuning at lr_detector 1e-3 (user decision 2026-11-19, see DECISIONS.md)
 lr_detector: 1.0e-3

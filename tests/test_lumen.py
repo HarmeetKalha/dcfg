@@ -411,3 +411,28 @@ def test_eta_scaling_and_totals():
     g = res["groups"]
     assert g[4]["cum_worst"] == pytest.approx(res["worst"]) and g[2]["cum_likely"] == pytest.approx(g[1]["likely"] + g[2]["likely"])
     assert "GPU-days" in le.markdown(res, ["n"]) and "ASSUMPTION" in le.markdown(res, ["n"])
+
+
+# ------------------------------------------------------------------ gen_matrix: bnft default lr (user decision 2026-11-19)
+def _gen_matrix():
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ops" / "jobs"))
+    import gen_matrix as gm  # noqa: E402
+    return gm
+
+
+def test_gen_matrix_bnft_lr_default_and_matches_committed_config(tmp_path: Path) -> None:
+    gm = _gen_matrix()
+    repo = Path(__file__).resolve().parents[1]
+    assert gm.main(["--out-dir", str(tmp_path), "--queue-out", str(tmp_path / "q.txt")]) in (0, None)
+    (tmp_path / "base.yaml").write_text((repo / "configs/train/base.yaml").read_text())  # configs inherit base.yaml
+    bn = [r for r in gm.matrix_runs() if r["variant"] == "bnft"]
+    assert bn, "matrix has no bnft run"
+    for r in bn:
+        cfg = tf.load_config(str(tmp_path / f"{r['run_id']}.yaml"))
+        assert float(cfg["lr_detector"]) == 1e-3
+    # the generator reproduces the committed (queued) bnft_xception.yaml byte for byte
+    assert (tmp_path / "bnft_xception.yaml").read_text() == (repo / "configs/train/bnft_xception.yaml").read_text()
+    # non-bnft runs keep the base detector lr (no override emitted)
+    for r in gm.matrix_runs():
+        if r["variant"] != "bnft":
+            assert "lr_detector" not in (tmp_path / f"{r['run_id']}.yaml").read_text()
