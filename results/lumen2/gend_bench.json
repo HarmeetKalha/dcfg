@@ -1,0 +1,38 @@
+{
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "weights_fp32_gb": 1.13,
+  "inference_fp16": [
+    {
+      "batch": 32,
+      "img_per_s": 104.1,
+      "peak_alloc_gb": 2.05,
+      "peak_reserved_gb": 2.15
+    },
+    {
+      "batch": 64,
+      "img_per_s": 106.5,
+      "peak_alloc_gb": 2.39,
+      "peak_reserved_gb": 2.53
+    }
+  ],
+  "ln_only_train_bf16": [
+    {
+      "batch": 32,
+      "trainable_params": 104450,
+      "img_per_s": 43.8,
+      "peak_alloc_gb": 7.99
+    },
+    {
+      "batch": 16,
+      "trainable_params": 104450,
+      "img_per_s": 42.9,
+      "peak_alloc_gb": 4.84
+    }
+  ],
+  "epoch_estimate_h": {
+    "frames": 184000,
+    "batch": 32,
+    "hours": 1.17,
+    "note": "GPU fwd+bwd only; excludes data loading/degradation and validation"
+  }
+}

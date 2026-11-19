@@ -2,6 +2,8 @@
 
 **LUMEN2 (2026-11-19): change of direction. Read docs/LUMEN2_BRIEF.md.**
 
+**DFD PAUSED (2026-11-19 20:07 UTC = 01:37 IST, user instruction; resumes only if we go ahead with LUMEN).** GenD gate PASSED (clean 0.960, synthetic-degraded mean 0.868 = -0.092, c40 0.801 = -0.159). Runner of ops/queue_lumen2.txt killed during `lumen2_dl_dfd_original`: 200 of 363 DFD original (actors) c23 videos in ~/data/ffpp_raw/original_sequences/actors/c23/videos (1.5 GB; the last file may be partial, the downloader re-fetches/skips existing files). Not started: `lumen2_dl_dfd_fakes`, `lumen2_recrop_dfd`, `lumen2_gend_dfd`. Nothing deleted. Resume: `DCFG_QUEUE_FILE=ops/queue_lumen2.txt nohup setsid ops/run_queue.sh >/dev/null 2>&1 &` (runner retries the interrupted job; DONE jobs are skipped). GenD-aug training runs from a separate queue file ops/queue_gend_aug.txt so the DFD lines stay untouched.
+
 **Current phase:** 3/4 — GATE 2 passed; GATES 3, 4, 6 approved 2026-11-17; Phase 5.3 baseline eval running. GATE 1 PASSED 2026-11-16, GATE 7 approved 2026-11-16.
 **Last updated:** 2026-11-16
 

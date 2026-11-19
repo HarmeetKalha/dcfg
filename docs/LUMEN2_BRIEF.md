@@ -52,3 +52,12 @@ Helpers: src/dcfg/eval/metrics.py (ece, selective_auc, paired_bootstrap_metric),
 Evaluate public GenD (`yermandy/GenD_CLIP_L_14`) on our 23 conditions (same degradation code/params/seeds). Gate: only if
 GenD loses >= 0.03 AUC from its clean score on the synthetic-degraded mean OR on c40, download + preprocess DFD and
 evaluate GenD on it; otherwise skip DFD and report that LUMEN2 has little room to improve.
+
+## Gate result and next step (2026-11-19)
+Public GenD, c23 test frame AUC: clean 0.960, synthetic-degraded mean 0.868 (-0.092), held-out 0.869, c40 0.801 (-0.159).
+Gate PASSED. DFD paused (see PROGRESS.md).
+
+**GenD-aug decisions (user, 2026-11-19):**
+- GenD-aug starts from GenD's public weights (`yermandy/GenD_CLIP_L_14`), not plain CLIP.
+- Any later LUMEN2 model starts from the same weights, with the same data, degradation stream and schedule.
+- Whether we continue to LUMEN2 is decided by the user after seeing GenD-aug results; there is no automatic rule.

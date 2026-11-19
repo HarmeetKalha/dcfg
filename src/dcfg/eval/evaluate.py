@@ -59,8 +59,11 @@ def git_commit(repo: Path = REPO_ROOT) -> str:
 class ConditionDataset(Dataset):
     """Frames of one condition; degradation is deterministic in (condition, frame key)."""
 
-    def __init__(self, source: FrameSource, records: Sequence[FrameRecord], cond: EvalCondition) -> None:
+    def __init__(self, source: FrameSource, records: Sequence[FrameRecord], cond: EvalCondition,
+                 post_transform: Callable[[np.ndarray], np.ndarray] | None = None) -> None:
         self.source, self.records, self.cond = source, list(records), cond
+        #: optional uint8 HxWx3 -> uint8 hxwx3 map applied AFTER the degradation (e.g. a detector's own resize)
+        self.post_transform = post_transform
 
     def __len__(self) -> int:
         return len(self.records)
@@ -70,6 +73,8 @@ class ConditionDataset(Dataset):
         img = self.source.load(rec)
         if self.cond.synthetic:
             img = apply_condition(img, self.cond, rec.key)
+        if self.post_transform is not None:
+            img = self.post_transform(img)
         return torch.from_numpy(np.ascontiguousarray(img)).permute(2, 0, 1)  # uint8 CHW
 
 
@@ -108,7 +113,8 @@ def evaluate_condition(*, run_id: str, detector: str, cond: EvalCondition, split
                        out_dir: Path, device: str = "cpu", batch_size: int = 64, workers: int = 4,
                        fp16: bool = False, n_boot: int = 1000, seed: int = 0, force: bool = False,
                        heartbeat: Heartbeat | None = None, dfb_commit_hash: str = "unknown",
-                       extra: dict[str, Any] | None = None) -> Path | None:
+                       extra: dict[str, Any] | None = None,
+                       post_transform: Callable[[np.ndarray], np.ndarray] | None = None) -> Path | None:
     """Evaluate one condition and write its JSON + scores npz. Returns the JSON path (None if skipped)."""
     check_out_dir(split, out_dir, run_id)
     json_path = out_dir / f"{run_id}__{cond.name}.json"
@@ -118,7 +124,7 @@ def evaluate_condition(*, run_id: str, detector: str, cond: EvalCondition, split
     recs = source.records(split, comp)
     if not recs:
         raise RuntimeError(f"no frames for split={split} comp={comp}")
-    loader = DataLoader(ConditionDataset(source, recs, cond), batch_size=batch_size, shuffle=False,
+    loader = DataLoader(ConditionDataset(source, recs, cond, post_transform), batch_size=batch_size, shuffle=False,
                         num_workers=workers, pin_memory=device.startswith("cuda"))
     t0 = time.time()
 

@@ -1,0 +1,13 @@
+# LUMEN2 queue (separate from ops/queue.txt). Run with: DCFG_QUEUE_FILE=ops/queue_lumen2.txt nohup setsid ops/run_queue.sh >/dev/null 2>&1 &
+lumen2_recrop_c23 | third_party/GenD/.venv/bin/python -I -m dcfg.gend.recrop --comp c23 --workers 6 #noheartbeat
+lumen2_recrop_c40 | third_party/GenD/.venv/bin/python -I -m dcfg.gend.recrop --comp c40 --workers 6 #noheartbeat
+lumen2_gend_clean | third_party/GenD/.venv/bin/python -I -m dcfg.gend.evaluate_gend --run gend_public --conditions clean --out-dir results/lumen2/gend_public #noheartbeat
+lumen2_gend_bench | third_party/GenD/.venv/bin/python -I -m dcfg.gend.bench #noheartbeat
+lumen2_diag_dfbcrop_clean | third_party/GenD/.venv/bin/python -I -m dcfg.gend.evaluate_gend --run gend_diag_dfbcrop --crops dfb --conditions clean --out-dir runs/lumen2_diag #noheartbeat
+lumen2_diag_fp32_clean | third_party/GenD/.venv/bin/python -I -m dcfg.gend.evaluate_gend --run gend_diag_fp32 --fp32 --conditions clean --out-dir runs/lumen2_diag #noheartbeat
+lumen2_recrop_c40b | third_party/GenD/.venv/bin/python -I -m dcfg.gend.recrop --comp c40 --workers 6 #noheartbeat
+lumen2_gend_all | third_party/GenD/.venv/bin/python -I -m dcfg.gend.evaluate_gend --run gend_public --conditions all --out-dir results/lumen2/gend_public #noheartbeat
+lumen2_dl_dfd_original | echo | python -I /home/harmeet/data/ffpp_raw/faceforensics_download_v4.py /home/harmeet/data/ffpp_raw -d DeepFakeDetection_original -c c23 -t videos --server EU2 #noheartbeat
+lumen2_dl_dfd_fakes | echo | python -I /home/harmeet/data/ffpp_raw/faceforensics_download_v4.py /home/harmeet/data/ffpp_raw -d DeepFakeDetection -c c23 -t videos --server EU2 #noheartbeat
+lumen2_recrop_dfd | third_party/GenD/.venv/bin/python -I -m dcfg.gend.recrop --comp c23 --dfd --workers 6 #noheartbeat
+lumen2_gend_dfd | third_party/GenD/.venv/bin/python -I -m dcfg.gend.evaluate_gend --run gend_dfd --conditions clean --json /home/harmeet/data/gend_crops_dfd/DFD.json --crops-root /home/harmeet/data/gend_crops_dfd --out-dir results/lumen2/gend_public #noheartbeat
