@@ -1,25 +1,26 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Sat 21 Nov 19:15 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Sat 21 Nov 21:06 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: 3898f06 LUMEN2 metrics amendment (before any results): heavy-damage mean = synthetic types only; Mon
+Last commit: 054e1fc LUMEN2: model (sensor + DCT gate + conditional LayerNorm), trainer with Monday backup, smoke
 
 ## Queue and ETA
 
 ### Runner: meeting (alive: yes)
 - `gate_heatmaps_lumen1`: done
-- `sensor_train`: pending, ETA Sat 21 Nov 21:20 IST
-- `sensor_eval`: pending, ETA Sat 21 Nov 22:15 IST
-- `lumen_nogate_xception`: pending, ETA Sun 22 Nov 09:45 IST
-- `eval_lumen_nogate_xception`: pending, ETA Sun 22 Nov 10:50 IST
-- `gate_ablation`: pending, ETA Sun 22 Nov 11:25 IST
+- `sensor_train`: done
+- `sensor_eval`: done
+- `lumen_nogate_xception`: pending, ETA Sun 22 Nov 08:36 IST
+- `eval_lumen_nogate_xception`: pending, ETA Sun 22 Nov 09:41 IST
+- `gate_ablation`: pending, ETA Sun 22 Nov 10:16 IST
 
 ### Runner: background (DFD) (alive: yes)
 - `bg_dl_dfd_original`: done
-- `bg_dl_dfd_fakes`: RUNNING: running; ETA Sat 21 Nov 19:45 IST
-- `bg_recrop_dfd`: pending, ETA Sat 21 Nov 20:15 IST
+- `bg_dl_dfd_fakes`: RUNNING: running; ETA Sat 21 Nov 21:36 IST
+- `bg_recrop_dfd`: pending, ETA Sat 21 Nov 22:06 IST
+- `bg_dfb_pre_dfd`: pending, ETA Sat 21 Nov 22:36 IST
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Sun 22 Nov 11:55 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Sun 22 Nov 10:46 IST
 
 ## Finished results
 
@@ -36,6 +37,10 @@ Per-damage change of the gate weights vs clean (`results/gate/lumen1/`):
 - c40: leaves unchanged relative to clean, mean change +0.004; strongest in the mid band (+0.007); luma (Y) +0.004 vs chroma (Cb, Cr) +0.005.
 - webp_q20: opens up (w up) relative to clean, mean change +0.058; strongest in the mid band (+0.069); luma (Y) +0.060 vs chroma (Cb, Cr) +0.058.
 - motion_k11: opens up (w up) relative to clean, mean change +0.076; strongest in the mid band (+0.092); luma (Y) +0.063 vs chroma (Cb, Cr) +0.082.
+
+### Step 2: standalone damage sensor - done
+772264 params. Presence F1 / strength Spearman per op: jpeg 0.99 / 0.97; blur 0.93 / 0.95; noise 0.98 / 0.96; resize 0.83 / 0.87
+Full report: `results/sensor/standalone.md`.
 
 ### Earlier: LIVE-pretrained sensor (quality regression)
 {"job_id": "sensor_live", "n_train": 930, "n_val": 116, "n_test": 116, "best_epoch": 66, "best_val_srcc": 0.6867950640064583, "epochs_run": 86}

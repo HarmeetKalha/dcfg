@@ -144,11 +144,12 @@ def _panel_grid(arrs: list[tuple[str, np.ndarray]], path: Path, norm, cmap: str,
     plt.close(fig)
 
 
-def plots(stats: dict, fixed: np.ndarray | None, out: Path) -> dict[str, float]:
-    """Write PNGs; returns the shared scale limits."""
+def plots(stats: dict, fixed: np.ndarray | None, out: Path, dev: float | None = None, dmax: float | None = None) -> dict[str, float]:
+    """Write PNGs; returns the shared scale limits. ``dev`` / ``dmax`` override the colour-scale half-widths (w around 1 / difference
+    around 0) so several models can share one scale (default: computed from ``stats``)."""
     from matplotlib.colors import TwoSlopeNorm
     all_means = [s["all"]["mean"] for s in stats.values()] + ([fixed] if fixed is not None else [])
-    dev = max(float(np.abs(a - 1).max()) for a in all_means)
+    dev = dev if dev is not None else max(float(np.abs(a - 1).max()) for a in all_means)
     wnorm = TwoSlopeNorm(vcenter=1.0, vmin=1 - dev, vmax=1 + dev)
     lab = "mean gate weight w (1 = unchanged)"
     for c, s in stats.items():
@@ -158,7 +159,7 @@ def plots(stats: dict, fixed: np.ndarray | None, out: Path) -> dict[str, float]:
         _panel_grid([("fixed gate (static)", fixed)], out / "w_fixed.png", wnorm, "RdBu_r", lab)
     clean = stats["clean"]["all"]["mean"]
     diffs = [(c, s["all"]["mean"] - clean) for c, s in stats.items() if c != "clean"]
-    dmax = max(float(np.abs(d).max()) for _, d in diffs)
+    dmax = dmax if dmax is not None else max(float(np.abs(d).max()) for _, d in diffs)
     dnorm = TwoSlopeNorm(vcenter=0.0, vmin=-dmax, vmax=dmax)
     dlab = "w(condition) - w(clean)  (0 = same as clean)"
     for c, d in diffs:
@@ -176,9 +177,10 @@ def band_table(stats: dict, fixed: np.ndarray | None) -> dict[str, dict[str, dic
     return out
 
 
-def write_summary(stats: dict, fixed: np.ndarray | None, scale: dict[str, float], path: Path, run: str) -> None:
+def write_summary(stats: dict, fixed: np.ndarray | None, scale: dict[str, float], path: Path, run: str,
+                  title: str = "LUMEN1 (Xception) gate heatmaps") -> None:
     bt = band_table(stats, fixed)
-    L = [f"# LUMEN1 (Xception) gate heatmaps: `{run}`", "",
+    L = [f"# {title}: `{run}`", "",
          "Test split, all frames, same degradation code and per-frame seeds as `results/raw`. w = 2*sigmoid(z); w = 1 means "
          "the coefficient is passed unchanged, w < 1 attenuated, w > 1 amplified. The gate has no bands; low / mid / high "
          "below are an after-the-fact grouping of the 8x8 grid by u+v (low 0-3, mid 4-7, high 8-14; u = vertical, "

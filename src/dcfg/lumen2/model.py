@@ -172,18 +172,24 @@ class Lumen2Model(nn.Module):
         for i, m in enumerate(self.cond_lns):
             m.set_cond((dg[:, i], db[:, i]))
 
+    def front(self, x: Tensor) -> tuple[dict[str, Tensor], Tensor, Tensor]:
+        """Sensor + DCT gate only (no CLIP): packed ``x`` -> ``(sensor outputs, gate weights w (B,3,8,8), gated image y (B,3,224,224))``.
+        Runs in fp32 with autocast disabled (also used by the gate-heatmap analysis)."""
+        crop, img = unpack_views(x)
+        with torch.autocast(device_type=x.device.type, enabled=False):
+            sens = self.sensor(crop.float())  # embedding, presence logits, strength: all fp32
+            coef = self.dct(rgb_to_ycbcr(img.float()))
+            w = self.gate(log_energy(coef), sens["embedding"])
+            y = ycbcr_to_rgb(self.dct.inverse(coef * w[:, :, None, None])).clamp(0, 1)
+        return sens, w, y
+
     def forward_train(self, x: Tensor) -> tuple[Tensor, Tensor, dict[str, Tensor], Tensor]:
         """Packed ``x (B,3,480,256)`` in [0,1] -> ``(logits (B,2), L2 embedding z (B,1024), sensor outputs, gate weights w (B,3,8,8))``.
 
         Call under the outer autocast (CLIP in bf16/fp16); the LUMEN parts disable autocast themselves."""
-        crop, img = unpack_views(x)
+        sens, w, y = self.front(x)
         with torch.autocast(device_type=x.device.type, enabled=False):
-            sens = self.sensor(crop.float())  # embedding, presence logits, strength: all fp32
-            s = sens["embedding"]
-            coef = self.dct(rgb_to_ycbcr(img.float()))
-            w = self.gate(log_energy(coef), s)
-            y = ycbcr_to_rgb(self.dct.inverse(coef * w[:, :, None, None])).clamp(0, 1)
-            self._condition(s)
+            self._condition(sens["embedding"])
         try:
             logits, z = self.base.features(y)
         finally:

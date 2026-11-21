@@ -68,6 +68,20 @@ class SubsetSource:
         return self.source.load(rec)
 
 
+class StrideSource:
+    """Smoke-test only: every k-th frame record so that about ``max_frames`` remain."""
+
+    def __init__(self, source: Any, max_frames: int) -> None:
+        self.source, self.max_frames = source, max_frames
+
+    def records(self, split: str, comp: str) -> list[FrameRecord]:
+        r = self.source.records(split, comp)
+        return r[:: max(1, len(r) // self.max_frames)]
+
+    def load(self, rec: FrameRecord) -> np.ndarray:
+        return self.source.load(rec)
+
+
 @torch.no_grad()
 def quick_eval(model: Lumen2Model, source: Any, cond: EvalCondition, split: str = "test", batch_size: int = 64, workers: int = 5,
                on_batch: Any = None) -> dict[str, Any]:
@@ -107,6 +121,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--workers", type=int, default=5)
     ap.add_argument("--n-boot", type=int, default=1000)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--max-frames", type=int, default=None, help="smoke test only (never for results)")
     a = ap.parse_args(argv)
     out_dir = Path(a.out_dir)
     conds = resolve_conditions(a.conditions, load_conditions(CONDITIONS_YAML))
@@ -118,6 +133,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     root = Path(a.crops_root) if a.crops_root else DATA_ROOT / "gend_crops"
     source = CropSource(root, json_path=a.json, frames_root=root if a.json else None)
+    if a.max_frames:
+        source = StrideSource(source, a.max_frames)
     model, meta = load_lumen2(a.trainable, "cuda")
     tap = SensorTap(model)
     extra = provenance("gend", True) | {
