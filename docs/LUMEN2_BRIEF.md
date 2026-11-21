@@ -67,3 +67,26 @@ Gate PASSED. DFD paused (see PROGRESS.md).
 - Validation: the same degraded val set as augft (clean, jpeg_q50, jpeg_q30, blur_s2, noise_s10, mixed_heavy), subsampled to 8 of the ~32 frames per video with `np.linspace` over the key-sorted frames (deterministic, hash recorded); selection metric = mean frame AUC over these conditions (as augft); val only.
 - AdamW, cosine over the 18-epoch cap, max 18 epochs, patience 6, seed 42, GenD's recipe (LayerNorm + L2-normalised head, CE + 0.5 uniformity + 0.1 alignment, lr 3e-4, weight decay 0, bf16), effective batch 128 (4 x 32), min lr 1e-5, 1-epoch warm-up. Details and deviations: DECISIONS.md rows of 2026-11-20.
 - Every run logs `stop_reason` ("patience" or "epoch_cap"), best epoch, stop epoch and the val curve; a run that hits the cap while still improving is flagged.
+
+## LUMEN2 pre-declared metrics (fixed 2026-11-21, before any LUMEN2 code or training)
+All metrics: paired difference LUMEN2 minus GenD-aug, same frames, 1,000 video-level bootstrap resamples (one shared
+resample matrix), 95% CI. Frame AUC unless stated.
+
+| Metric | Definition | Role | Win when |
+|---|---|---|---|
+| Synthetic-degraded mean AUC | mean frame AUC over the 17 synthetic conditions | **Primary** | CI > 0 |
+| c40 AUC | FF++ c40 test | Secondary | CI > 0 |
+| Held-out mean AUC | mean over webp_q50, webp_q20, motion_k7, motion_k11 | Secondary | CI > 0 |
+| ECE | 15 equal-width bins, P(fake) vs label, all degraded test frames | Secondary | CI < 0 |
+| Selective AUC 80% / 90% | most confident 80% / 90% by abs(p-0.5), all degraded frames | Secondary | CI > 0 at either |
+| Worst-case AUC | min frame AUC over all 22 degraded conditions (17 synthetic + 4 held-out + c40); per resample, min over conditions computed for each model, then differenced | Secondary | CI > 0 |
+| Heavy-damage mean AUC | mean frame AUC over exactly: jpeg_q10, blur_s4, noise_s20, resize_0.25, webp_q20, motion_k11, mixed_heavy (strongest level of each degradation type in the condition table, plus mixed-heavy; c40 excluded, reported on its own) | Secondary | CI > 0 |
+| Video AUC, synthetic mean | video AUC (mean frame prob per video), mean over the 17 synthetic conditions | Secondary | CI > 0 |
+| Video AUC, c40 | video AUC on c40 | Secondary | CI > 0 |
+| DFD under damage | frame AUC on DFD with mixed_heavy applied (same seeding rule) | Secondary | CI > 0 |
+| Clean c23 AUC | frame AUC, clean c23 test | **Safety** | CI not entirely < 0 |
+| Clean DFD AUC | frame AUC, clean DFD | **Safety** | CI not entirely < 0 |
+
+Exploratory (reported, never used as a claim): AP, EER, every single condition, sensor accuracy.
+"Worth publishing" rule unchanged (wins primary OR >= 1 secondary, passes BOTH safety checks, and a later LUMEN-uncond
+control must lose to LUMEN2 on the same metric it wins). No metric is dropped after seeing results.
