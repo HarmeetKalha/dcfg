@@ -196,6 +196,18 @@ def write_summary(stats: dict, fixed: np.ndarray | None, scale: dict[str, float]
         if c == "clean":
             continue
         L.append(f"| {c} | " + " | ".join(f"{bt[c][ch][b] - bt['clean'][ch][b]:+.3f}" for ch in CHANNELS for b in BANDS) + " |")
+    L += ["", "## Headline", ""]
+    for c in stats:
+        if c == "clean":
+            continue
+        dl = {b: np.mean([bt[c][ch][b] - bt["clean"][ch][b] for ch in CHANNELS]) for b in BANDS}
+        dy = np.mean([bt[c]["Y"][b] - bt["clean"]["Y"][b] for b in BANDS])
+        dc = np.mean([bt[c][ch][b] - bt["clean"][ch][b] for ch in ("Cb", "Cr") for b in BANDS])
+        avg = np.mean(list(dl.values()))
+        verdict = "attenuates (w down)" if avg < -0.02 else "opens up (w up)" if avg > 0.02 else "leaves unchanged"
+        top = max(dl, key=lambda b: abs(dl[b]))
+        L.append(f"- {c}: {verdict} relative to clean, mean change {avg:+.3f}; strongest in the {top} band ({dl[top]:+.3f}); "
+                 f"luma (Y) {dy:+.3f} vs chroma (Cb, Cr) {dc:+.3f}.")
     L += ["", "## In plain language", ""]
     thr = 0.02
     for c in stats:

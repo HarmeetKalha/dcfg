@@ -1,5 +1,14 @@
-# Meeting queue (runner: DCFG_QUEUE_FILE=ops/queue_meeting.txt ops/run_queue.sh, default runs root runs/).
-# The runner re-reads this file after every job and EXITS when no unfinished job is left: if you append later, restart it.
+# Meeting queue (runner: DCFG_QUEUE_FILE=ops/queue_meeting.txt nohup setsid ops/run_queue.sh, default runs root runs/).
+# The runner re-reads this file after every job and EXITS when no unfinished job is left: if you append later, RESTART it.
 gate_heatmaps_lumen1 | .venv/bin/python -m dcfg.analysis.gate_heatmaps --run lumen_xception --fixed-run fixed_xception --out results/gate/lumen1 --workers 5 #noheartbeat
-lumen_nogate_train | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_nogate_xception.yaml #hb=30
-lumen_nogate_eval | test -f runs/lumen_nogate_train/DONE && .venv/bin/python -m dcfg.eval.evaluate --run lumen_nogate_xception --detector xception --conditions all --split test --frontend runs/lumen_nogate_xception/frontend.pt #hb=30
+after_gate_heatmaps_lumen1 | ops/jobs/after_job.sh gate_heatmaps_lumen1 #noheartbeat
+sensor_train | .venv/bin/python -m dcfg.degrade.train_damage_sensor --run-dir runs/damage_sensor --cap-hours 1.5 #hb=30
+after_sensor_train | ops/jobs/after_job.sh sensor_train #noheartbeat
+sensor_eval | test -f runs/sensor_train/DONE && .venv/bin/python -m dcfg.degrade.eval_damage_sensor --ckpt runs/damage_sensor/best.pt --out results/sensor/standalone #noheartbeat
+after_sensor_eval | ops/jobs/after_job.sh sensor_eval #noheartbeat
+lumen_nogate_xception | .venv/bin/python -m dcfg.train.train_frontend --config configs/train/lumen_nogate_xception.yaml #hb=30
+after_lumen_nogate_xception | ops/jobs/after_job.sh lumen_nogate_xception #noheartbeat
+eval_lumen_nogate_xception | test -f runs/lumen_nogate_xception/DONE && .venv/bin/python -m dcfg.eval.evaluate --run lumen_nogate_xception --detector xception --conditions all --split test --frontend runs/lumen_nogate_xception/frontend.pt #hb=30
+after_eval_lumen_nogate_xception | ops/jobs/after_job.sh eval_lumen_nogate_xception #noheartbeat
+gate_ablation | test -f runs/eval_lumen_nogate_xception/DONE && python -m dcfg.analysis.gate_ablation #noheartbeat
+after_gate_ablation | ops/jobs/after_job.sh gate_ablation #noheartbeat
