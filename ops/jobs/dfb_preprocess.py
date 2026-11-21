@@ -16,6 +16,7 @@ HOME = Path.home()
 DFB = HOME / "dcfg/third_party/DeepfakeBench/preprocessing"
 SEQS = ["original_sequences/youtube", "manipulated_sequences/Deepfakes", "manipulated_sequences/Face2Face",
         "manipulated_sequences/FaceSwap", "manipulated_sequences/NeuralTextures"]
+DFD_SEQS = {"original_sequences/actors": "FF-real", "manipulated_sequences/DeepFakeDetection": "FF-DFD"}
 PRED = HOME / "data/weights/shape_predictor_81_face_landmarks.dat"
 _G = {}
 
@@ -63,6 +64,18 @@ def split_stems(split_dir, split="test"):
     for a, b in pairs: s |= {a, b, a + "_" + b, b + "_" + a}
     return s
 
+def write_dfd_json(out, comp):
+    """DFB-schema JSON (all videos under split test, labels FF-real / FF-DFD), frame paths relative to ``out``."""
+    doc = {}
+    for seq, label in DFD_SEQS.items():
+        vids = {}
+        for vd in sorted((out / seq / comp / "frames").glob("*")):
+            files = sorted(str(f.relative_to(out)) for f in vd.glob("*.png"))
+            if files: vids[vd.name] = {"label": label, "frames": files}
+        doc[label] = {"test": {comp: vids}}
+    (out / "DFD.json").write_text(json.dumps({"FaceForensics++": doc}))
+    print("wrote", out / "DFD.json", {k: len(v["test"][comp]) for k, v in doc.items()}, flush=True)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--comp", required=True, choices=["c23", "c40"])
@@ -74,13 +87,17 @@ def main():
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--num-frames", type=int, default=32)
     ap.add_argument("--limit", type=int, default=0, help="per sequence type, for dry runs only")
+    ap.add_argument("--dfd", action="store_true",
+                    help="DeepFakeDetection (actors real + DFD fakes, all videos): DFB preprocessing into ~/data/dfd_frames/DFD + DFD.json")
     ap.add_argument("--only", default="", help="substring filter on sequence name")
     a = ap.parse_args()
+    if a.dfd and a.out == str(HOME / "data/ffpp_frames/FaceForensics++"):
+        a.out = str(HOME / "data/dfd_frames/DFD")
     out = Path(a.out)
     split = a.split or ("test" if a.test_only else None)
     keep = split_stems(Path(os.environ.get("DFB_SPLITS", HOME / "data/ffpp_frames/FaceForensics++")), split) if split else None
     jobs = []
-    for seq in SEQS:
+    for seq in (DFD_SEQS if a.dfd else SEQS):
         if a.only and a.only not in seq: continue
         vids = sorted(glob.glob(f"{a.raw}/{seq}/{a.comp}/videos/*.mp4"))
         if keep is not None: vids = [v for v in vids if Path(v).stem in keep]
@@ -96,6 +113,8 @@ def main():
             if r[3] >= 0:
                 sf.write("\t".join(map(str, r[:5])) + f"\t{r[5]:.1f}\n"); sf.flush()
             if k % 50 == 0: print(f"{k}/{len(jobs)} {time.time()-t0:.0f}s", flush=True)
+    if a.dfd:
+        write_dfd_json(out, a.comp)
     print(f"DONE {k} videos in {time.time()-t0:.0f}s", flush=True)
 
 if __name__ == "__main__":

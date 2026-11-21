@@ -1,3 +1,4 @@
 bg_dl_dfd_original | echo | python -I /home/harmeet/data/ffpp_raw/faceforensics_download_v4.py /home/harmeet/data/ffpp_raw -d DeepFakeDetection_original -c c23 -t videos --server EU2 #noheartbeat
 bg_dl_dfd_fakes | echo | python -I /home/harmeet/data/ffpp_raw/faceforensics_download_v4.py /home/harmeet/data/ffpp_raw -d DeepFakeDetection -c c23 -t videos --server EU2 #noheartbeat
 bg_recrop_dfd | nice -n 19 third_party/GenD/.venv/bin/python -I -m dcfg.gend.recrop --comp c23 --dfd --workers 2 #noheartbeat
+bg_dfb_pre_dfd | test -f runs_bg/bg_recrop_dfd/DONE && nice -n 19 .venv/bin/python -I ops/jobs/dfb_preprocess.py --comp c23 --dfd --workers 2 #noheartbeat
