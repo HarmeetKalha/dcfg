@@ -10,7 +10,14 @@ from .fixed import FixedGate
 from .gate import FrequencyGate, log_energy
 from .sensor import DegradationSensor
 
-GATE_KINDS = ("dcfg", "fixed", "nosensor")
+GATE_KINDS = ("dcfg", "fixed", "nosensor", "identity")
+
+
+class IdentityGate(nn.Module):
+    """Parameter-free stand-in for the DCT gate: weights are exactly 1 and the image is not touched."""
+
+    def forward(self, batch_size: int, device: torch.device | str = "cpu") -> Tensor:
+        return torch.ones(batch_size, 3, 8, 8, device=device)
 
 
 class FrontEnd(nn.Module):
@@ -31,6 +38,10 @@ class FrontEnd(nn.Module):
     The rest of the module runs in fp32 with autocast disabled and returns the input dtype.
     ``forward(x01) -> (y01, w)`` with w of shape (B,3,8,8).
 
+    ``identity`` (variant ``lumen_nogate``): NO gate at all. Sensor + FiLM bank like ``dcfg``, but the DCT path is
+    skipped entirely (no DCT, no gate module with parameters, no energy statistics): ``y01 = x01`` and the returned
+    ``w`` is a constant tensor of ones (logging only, no grad). ``self.gate`` is a parameter-free :class:`IdentityGate`.
+
     Optional ``film`` (a :class:`FiLMBank`, dcfg gate only): maps the sensor embedding to per-site FiLM
     parameters for the detector. ``forward_full(x01) -> (y01, w, film_params|None)`` also returns them
     (the detector-side hooks that apply them live in ``dcfg.detectors.adapter.FilmHooks``).
@@ -44,15 +55,17 @@ class FrontEnd(nn.Module):
             raise ValueError(f"gate_kind must be one of {GATE_KINDS}")
         self.gate_kind = gate_kind
         self.sensor_amp = sensor_amp
-        if film is not None and gate_kind != "dcfg":
-            raise ValueError("FiLM is conditioned on the sensor embedding: needs gate_kind='dcfg'")
+        if film is not None and gate_kind not in ("dcfg", "identity"):
+            raise ValueError("FiLM is conditioned on the sensor embedding: needs gate_kind='dcfg' or 'identity'")
+        if gate_kind == "identity" and film is None:
+            raise ValueError("gate_kind='identity' (lumen_nogate) is only meaningful with a FiLM bank")
         self.film = film
         self.dct = BlockDCT()
         self.sensor: DegradationSensor | None = None
         self.gate: nn.Module
-        if gate_kind == "dcfg":
+        if gate_kind in ("dcfg", "identity"):
             self.sensor = sensor if sensor is not None else DegradationSensor()
-            self.gate = FrequencyGate(use_sensor=True)
+            self.gate = FrequencyGate(use_sensor=True) if gate_kind == "dcfg" else IdentityGate()
         elif gate_kind == "nosensor":
             self.gate = FrequencyGate(use_sensor=False)
         else:
@@ -84,6 +97,12 @@ class FrontEnd(nn.Module):
 
     def forward_full(self, x01: Tensor) -> tuple[Tensor, Tensor, dict[str, tuple[Tensor, Tensor]] | None]:
         in_dtype = x01.dtype
+        if self.gate_kind == "identity":
+            with torch.autocast(device_type=x01.device.type, enabled=False):
+                x = x01.float()
+                emb = self._embed(x)
+                film_params = self.film(emb) if self.film is not None else None
+                return x01, self.gate(x.shape[0], x.device), film_params
         with torch.autocast(device_type=x01.device.type, enabled=False):
             x = x01.float()
             coef = self.dct(rgb_to_ycbcr(x))

@@ -94,14 +94,15 @@ def config_diff(old: dict[str, Any], new: dict[str, Any]) -> dict[str, tuple[Any
 
 VARIANTS = ("dcfg", "fixed", "nosensor", "dcfg_nolive", "augft", "dcfg_jointft",
             "dcfg_cons", "dcfg_film", "dcfg_filmlite",
-            "lumen", "lumen_nocons", "lumen_nolive", "lumen_frozensensor", "bnft")
+            "lumen", "lumen_nocons", "lumen_nolive", "lumen_frozensensor", "lumen_nogate", "bnft")
 #: alias -> canonical variant (behaviour is looked up on the canonical name; configs/checkpoints keep the given name)
 VARIANT_ALIAS = {"dcfg_filmlite": "lumen"}
 #: variants that use the consistency loss (clean teacher, frozen detector); config ``consistency`` defaults to 1/1
-CONSISTENCY_VARIANTS = ("dcfg_cons", "dcfg_film", "dcfg_filmlite", "lumen", "lumen_nolive", "lumen_frozensensor")
+CONSISTENCY_VARIANTS = ("dcfg_cons", "dcfg_film", "dcfg_filmlite", "lumen", "lumen_nolive", "lumen_frozensensor", "lumen_nogate")
 FILM_VARIANTS = {"dcfg_film": "film", "dcfg_filmlite": "filmlite", "lumen": "filmlite", "lumen_nocons": "filmlite", "lumen_nolive": "filmlite",
+                 "lumen_nogate": "filmlite",
                  "lumen_frozensensor": "filmlite"}
-LUMEN_FAMILY = ("lumen", "lumen_nocons", "lumen_nolive", "lumen_frozensensor")
+LUMEN_FAMILY = ("lumen", "lumen_nocons", "lumen_nolive", "lumen_frozensensor", "lumen_nogate")
 NOLIVE_VARIANTS = ("dcfg_nolive", "lumen_nolive")  #: random-init sensor (no LIVE pretraining)
 FROZEN_SENSOR_VARIANTS = ("lumen_frozensensor",)  #: sensor frozen regardless of ``freeze_sensor``
 TRAIN_DETECTOR = ("augft", "dcfg_jointft")
@@ -117,7 +118,7 @@ def canonical_variant(v: str) -> str:
 SPE_LABEL = {"FF-real": 0, "FF-DF": 1, "FF-F2F": 2, "FF-FS": 3, "FF-NT": 4}
 GATE_KIND = {"dcfg": "dcfg", "dcfg_nolive": "dcfg", "dcfg_jointft": "dcfg", "fixed": "fixed",
              "nosensor": "nosensor", "augft": None, "dcfg_cons": "dcfg", "dcfg_film": "dcfg",
-             "lumen": "dcfg", "lumen_nocons": "dcfg", "lumen_nolive": "dcfg", "lumen_frozensensor": "dcfg",
+             "lumen": "dcfg", "lumen_nocons": "dcfg", "lumen_nolive": "dcfg", "lumen_frozensensor": "dcfg", "lumen_nogate": "identity",
              "bnft": None}
 
 
