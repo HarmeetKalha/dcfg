@@ -22,7 +22,8 @@ IST = timezone(timedelta(hours=5, minutes=30))
 RUNNERS = [("meeting", REPO / "runs", REPO / "ops/queue_meeting.txt"), ("background (DFD)", REPO / "runs_bg", REPO / "ops/queue_dfd_bg.txt")]
 #: planning estimate in minutes for jobs that have not started (training ones are refined from measurements)
 PLAN_MIN = {"gate_heatmaps_lumen1": 20, "sensor_train": 95, "sensor_eval": 25, "lumen_nogate_xception": 11 * 60, "eval_lumen_nogate_xception": 35,
-            "gate_ablation": 5}
+            "gate_ablation": 5, "lumen2_smoke": 45, "lumen2_train": 27 * 60, "lumen2_eval": 120, "lumen2_bench": 5,
+            "lumen2_report": 30, "gate_heatmaps_lumen2": 25}
 NOGATE_EPOCH_MIN, NOGATE_MAX_EPOCHS = 22.5, 30  # from lumen_xception: 33,393 s / 25 epochs = 22.3 min
 
 
@@ -198,11 +199,23 @@ def results_section() -> list[str]:
         L += [f"(aggregate table failed: {e})", ""]
     # GenD family
     L += block("LUMEN2 track: GenD (public) / GenD-aug", head(REPO / "results/lumen2/gend_aug.md", 8))
-    lum2 = sorted((REPO / "results/lumen2").glob("lumen2*.md"))
+    lum2 = sorted(p for p in (REPO / "results/lumen2").glob("lumen2*.md") if "smoke" not in p.name)
     if lum2:
         L += block("LUMEN2", head(lum2[-1], 12))
+    # LUMEN2 interim (Monday backup) + smoke
+    part = sorted((REPO / "results/lumen2").glob("partial_epoch*.json"), key=lambda p: int(re.findall(r"\d+", p.name)[0]))
+    if part:
+        d = jload(part[-1]) or {}
+        b = d.get("gend_aug_same_subset") or {}
+        L += block(f"LUMEN2 INTERIM ({d.get('label')}; test videos, fixed frame subset, not a paper number)",
+                   [f"clean {d.get('clean', float('nan')):.4f}, synthetic mean {d.get('synth_mean', float('nan')):.4f}, c40 {d.get('c40', float('nan')):.4f}"
+                    + (f"; GenD-aug on the same frames: {b.get('clean', float('nan')):.4f} / {b.get('synth_mean', float('nan')):.4f} / {b.get('c40', float('nan')):.4f}" if b else ""),
+                    "sensor presence F1: " + ", ".join(f"{o} {r['presence_f1']:.2f}" for o, r in (d.get("sensor", {}).get("per_op", {})).items()),
+                    "strength MAE: " + ", ".join(f"{o} {r['strength_mae']:.3f}" for o, r in (d.get("sensor", {}).get("per_op", {})).items())])
+    if (REPO / "results/lumen2/lumen2_smoke.md").exists():
+        L += block("LUMEN2 smoke test", head(REPO / "results/lumen2/lumen2_smoke.md", 12))
     # DFD
-    dfd = jload(REPO / "results/lumen2/gend_public/gend_dfd__clean.json")
+    dfd = jload(REPO / "results/dfd/gend_public__clean.json")
     if dfd:
         L += block("DFD (GenD public, clean)", [f"frame AUC {dfd['frame_auc']:.4f}, video AUC {dfd['video_auc']:.4f}"])
     else:

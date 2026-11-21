@@ -12,7 +12,9 @@ JOB="${1:-unknown}"; SUMMARY="${2:-}"; [ $# -ge 2 ] && shift 2 || shift $#
 python ops/jobs/meeting_status.py >/dev/null 2>&1
 # stage by job
 case "$JOB" in
+  gate_heatmaps_lumen2) PATHS=(results/gate/lumen2) ;;
   gate_heatmaps*) PATHS=(results/gate/lumen1) ;;
+  dfd_*) PATHS=(results/dfd results/lumen2 results/gate) ;;
   sensor_train) PATHS=(results/sensor) ;;
   sensor_eval) PATHS=(results/sensor) ;;
   lumen_nogate_xception) PATHS=() ;;

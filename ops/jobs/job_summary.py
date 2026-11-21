@@ -83,10 +83,47 @@ def _ablation() -> str:
     return f"gate ablation: LUMEN1 - no-gate frame AUC synth {f(s)}, heavy {f(h)}"
 
 
+def _lumen2(job: str) -> str:
+    L2 = REPO / "results" / "lumen2"
+    if job == "lumen2_smoke":
+        d = _j(REPO / "runs/lumen2_smoke/smoke.json")
+        if not d:
+            return "LUMEN2 smoke finished (no json)"
+        e = d["train_check"]["estimate"]
+        return (f"LUMEN2 smoke {'PASS' if d['pass'] else 'NO PASS'}: 18 epochs ~{e['total_h']:.1f} h (limit 30), "
+                f"step0 {d['step0']['pass']}, stream {d['stream']['pass']}, loss {d['train_check']['loss_pass']}, resume {d['resume']['pass']}")
+    if job == "lumen2_train":
+        d = _j(REPO / "runs/lumen2_train/done.json") or {}
+        return (f"LUMEN2 trained: stop {d.get('stop_reason')}, best epoch {d.get('best_epoch')}, stop epoch {d.get('stop_epoch')}, "
+                f"val {d.get('best_val_mean_auc', float('nan')):.4f}, {d.get('train_wall_time_s', 0) / 3600:.1f} h")
+    if job == "lumen2_eval":
+        n = len(list((L2 / "lumen2").glob("lumen2__*.json")))
+        return f"LUMEN2 eval done: {n}/23 conditions"
+    if job == "lumen2_bench":
+        d = _j(L2 / "lumen2_cost.json") or {}
+        return f"LUMEN2 inference x{d.get('overhead_ratio', float('nan')):.2f} vs GenD-aug, {d.get('lumen_params_total')} LUMEN params"
+    if job == "lumen2_report":
+        d = _j(L2 / "lumen2_eval.json")
+        if not d:
+            return "LUMEN2 eval report written"
+        s_, c_ = d["metrics"]["synth_mean"]["diff"], d["metrics"]["c40"]["diff"]
+        return f"LUMEN2-GenD-aug: synth mean {s_[0]:+.4f} [{s_[1]:+.4f},{s_[2]:+.4f}], c40 {c_[0]:+.4f} [{c_[1]:+.4f},{c_[2]:+.4f}]"
+    if job == "gate_heatmaps_lumen2":
+        return "LUMEN2 gate heatmaps + LUMEN1 side-by-side written (results/gate/lumen2)"
+    if job.startswith("dfd_"):
+        run = job[4:]
+        d = _j(REPO / f"results/dfd/{run}__clean.json")
+        m = _j(REPO / f"results/dfd/{run}__mixed_heavy.json")
+        if d and m:
+            return f"DFD {run}: frame AUC clean {d['frame_auc']:.4f}, mixed_heavy {m['frame_auc']:.4f}"
+        return f"DFD {run} done"
+    return f"{job} done"
+
+
 def summarize(job: str) -> str:
     """One line for ``job`` (the id without the ``after_`` prefix)."""
     try:
-        if job.startswith("gate_heatmaps"):
+        if job.startswith("gate_heatmaps") and job != "gate_heatmaps_lumen2":
             return _gate_heatmaps()
         if job == "sensor_train":
             return _train("damage_sensor", "damage sensor trained")
@@ -98,6 +135,8 @@ def summarize(job: str) -> str:
             return _nogate_eval()
         if job == "gate_ablation":
             return _ablation()
+        if job.startswith(("lumen2_", "dfd_")) or job == "gate_heatmaps_lumen2":
+            return _lumen2(job)
     except Exception as e:  # noqa: BLE001
         return f"{job} done (summary failed: {type(e).__name__})"
     return f"{job} done"

@@ -124,6 +124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--workers", type=int, default=5)
     ap.add_argument("--max-frames", type=int, default=None, help="smoke test only")
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--collect-only", action="store_true", help="GenD venv (transformers) step; plotting needs matplotlib (main venv)")
     a = ap.parse_args(argv)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -131,6 +132,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     npz = out / "gate_means.npz"
     if not a.plot_only:
         collect(a.trainable, conds, npz, workers=a.workers, max_frames=a.max_frames)
+    if a.collect_only:
+        return 0
     s2 = GH.load_stats(npz, conds)
     s1 = GH.load_stats(Path(a.lumen1_dir) / "gate_means.npz", conds)
     dev, dmax = shared_scale(s1, s2)

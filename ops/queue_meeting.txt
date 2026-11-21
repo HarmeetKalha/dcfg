@@ -12,3 +12,36 @@ eval_lumen_nogate_xception | test -f runs/lumen_nogate_xception/DONE && .venv/bi
 after_eval_lumen_nogate_xception | ops/jobs/after_job.sh eval_lumen_nogate_xception #noheartbeat
 gate_ablation | test -f runs/eval_lumen_nogate_xception/DONE && python -m dcfg.analysis.gate_ablation #noheartbeat
 after_gate_ablation | ops/jobs/after_job.sh gate_ablation #noheartbeat
+# ---- LUMEN2 (appended 2026-11-21): smoke -> train -> eval -> bench -> report -> gate heatmaps -> DFD -> final. GenD venv jobs use third_party/GenD/.venv (-I).
+lumen2_smoke | third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.smoke --config configs/train/lumen2.yaml #noheartbeat
+after_lumen2_smoke | ops/jobs/after_job.sh lumen2_smoke #noheartbeat
+lumen2_train | test -f runs/lumen2_smoke/PASS && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.train --config configs/train/lumen2.yaml #noheartbeat
+after_lumen2_train | ops/jobs/after_job.sh lumen2_train #noheartbeat
+lumen2_eval | test -f runs/lumen2_train/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.evaluate_lumen2 --run lumen2 --trainable runs/lumen2_train/best_trainable.pt --conditions all --out-dir results/lumen2/lumen2 #noheartbeat
+after_lumen2_eval | ops/jobs/after_job.sh lumen2_eval #noheartbeat
+lumen2_bench | test -f runs/lumen2_eval/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.bench #noheartbeat
+after_lumen2_bench | ops/jobs/after_job.sh lumen2_bench #noheartbeat
+lumen2_report | test -f runs/lumen2_eval/DONE && .venv/bin/python -m dcfg.lumen2.report #noheartbeat
+after_lumen2_report | ops/jobs/after_job.sh lumen2_report #noheartbeat
+gate_heatmaps_lumen2_collect | test -f runs/lumen2_train/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.analysis.gate_heatmaps_lumen2 --collect-only --trainable runs/lumen2_train/best_trainable.pt #noheartbeat
+gate_heatmaps_lumen2 | test -f runs/gate_heatmaps_lumen2_collect/DONE && .venv/bin/python -m dcfg.analysis.gate_heatmaps_lumen2 --plot-only #noheartbeat
+after_gate_heatmaps_lumen2 | ops/jobs/after_job.sh gate_heatmaps_lumen2 #noheartbeat
+dfd_gend_public | ops/jobs/wait_for.sh runs_bg/bg_recrop_dfd && third_party/GenD/.venv/bin/python -I -m dcfg.gend.evaluate_gend --run gend_public --conditions clean,mixed_heavy --out-dir results/dfd --crops-root /home/harmeet/data/gend_crops_dfd --json /home/harmeet/data/gend_crops_dfd/DFD.json #noheartbeat
+after_dfd_gend_public | ops/jobs/after_job.sh dfd_gend_public #noheartbeat
+dfd_gend_aug | ops/jobs/wait_for.sh runs_bg/bg_recrop_dfd && third_party/GenD/.venv/bin/python -I -m dcfg.gend.evaluate_gend --run gend_aug --conditions clean,mixed_heavy --out-dir results/dfd --crops-root /home/harmeet/data/gend_crops_dfd --json /home/harmeet/data/gend_crops_dfd/DFD.json --trainable runs/gendaug_train/best_trainable.pt #noheartbeat
+after_dfd_gend_aug | ops/jobs/after_job.sh dfd_gend_aug #noheartbeat
+dfd_lumen2 | test -f runs/lumen2_train/DONE && ops/jobs/wait_for.sh runs_bg/bg_recrop_dfd && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.evaluate_lumen2 --run lumen2 --trainable runs/lumen2_train/best_trainable.pt --conditions clean,mixed_heavy --out-dir results/dfd --crops-root /home/harmeet/data/gend_crops_dfd --json /home/harmeet/data/gend_crops_dfd/DFD.json #noheartbeat
+after_dfd_lumen2 | ops/jobs/after_job.sh dfd_lumen2 #noheartbeat
+dfd_base_xception | ops/jobs/wait_for.sh runs_bg/bg_dfb_pre_dfd && .venv/bin/python -m dcfg.eval.evaluate --run base_xception --detector xception --conditions clean,mixed_heavy --split test --out-dir results/dfd --json /home/harmeet/data/dfd_frames/DFD/DFD.json --frames-root /home/harmeet/data/dfd_frames/DFD #noheartbeat
+after_dfd_base_xception | ops/jobs/after_job.sh dfd_base_xception #noheartbeat
+dfd_augft_xception | ops/jobs/wait_for.sh runs_bg/bg_dfb_pre_dfd && .venv/bin/python -m dcfg.eval.evaluate --run augft_xception --detector xception --conditions clean,mixed_heavy --split test --detector-ckpt runs/augft_xception/detector.pt --out-dir results/dfd --json /home/harmeet/data/dfd_frames/DFD/DFD.json --frames-root /home/harmeet/data/dfd_frames/DFD #noheartbeat
+after_dfd_augft_xception | ops/jobs/after_job.sh dfd_augft_xception #noheartbeat
+dfd_lumen_xception | ops/jobs/wait_for.sh runs_bg/bg_dfb_pre_dfd && .venv/bin/python -m dcfg.eval.evaluate --run lumen_xception --detector xception --conditions clean,mixed_heavy --split test --frontend runs/lumen_xception/frontend.pt --out-dir results/dfd --json /home/harmeet/data/dfd_frames/DFD/DFD.json --frames-root /home/harmeet/data/dfd_frames/DFD #noheartbeat
+after_dfd_lumen_xception | ops/jobs/after_job.sh dfd_lumen_xception #noheartbeat
+dfd_fixed_xception | ops/jobs/wait_for.sh runs_bg/bg_dfb_pre_dfd && .venv/bin/python -m dcfg.eval.evaluate --run fixed_xception --detector xception --conditions clean,mixed_heavy --split test --frontend runs/fixed_xception/frontend.pt --out-dir results/dfd --json /home/harmeet/data/dfd_frames/DFD/DFD.json --frames-root /home/harmeet/data/dfd_frames/DFD #noheartbeat
+after_dfd_fixed_xception | ops/jobs/after_job.sh dfd_fixed_xception #noheartbeat
+dfd_lumen_nogate_xception | test -f runs/lumen_nogate_xception/DONE && ops/jobs/wait_for.sh runs_bg/bg_dfb_pre_dfd && .venv/bin/python -m dcfg.eval.evaluate --run lumen_nogate_xception --detector xception --conditions clean,mixed_heavy --split test --frontend runs/lumen_nogate_xception/frontend.pt --out-dir results/dfd --json /home/harmeet/data/dfd_frames/DFD/DFD.json --frames-root /home/harmeet/data/dfd_frames/DFD #noheartbeat
+after_dfd_lumen_nogate_xception | ops/jobs/after_job.sh dfd_lumen_nogate_xception #noheartbeat
+dfd_reports | .venv/bin/python -m dcfg.lumen2.dfd_append --report results/lumen2/gend_aug.md --models gend_public:GenD gend_aug:GenD-aug base_xception:base_xception augft_xception:augft_xception lumen_xception:lumen_xception && .venv/bin/python -m dcfg.lumen2.dfd_append --report results/gate/ablation_xception.md --models base_xception:base lumen_nogate_xception:LUMEN1-no-gate lumen_xception:LUMEN1 fixed_xception:fixed augft_xception:augft && .venv/bin/python -m dcfg.lumen2.report && .venv/bin/python -m dcfg.lumen2.dfd_append --report results/lumen2/lumen2_eval.md --models gend_public:GenD gend_aug:GenD-aug lumen2:LUMEN2 #noheartbeat
+after_dfd_reports | ops/jobs/after_job.sh dfd_reports #noheartbeat
+lumen2_final | .venv/bin/python -m dcfg.lumen2.pilot_report && ops/jobs/after_job.sh lumen2_final "$(cat results/lumen2/final_line.txt)" #noheartbeat
