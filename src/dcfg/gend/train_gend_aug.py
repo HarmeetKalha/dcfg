@@ -212,7 +212,7 @@ class GendAugTrainer:
 
             model_fn = lambda: load_gend("cpu")  # noqa: E731
         self.model = model_fn().to(self.dev)
-        self.params = [p for _, p in set_trainable(self.model)]
+        self.params = self._init_params()
         self.n_trainable = sum(p.numel() for p in self.params)
         if expected_trainable is not None and self.n_trainable != expected_trainable:
             raise RuntimeError(f"trainable params {self.n_trainable} != expected {expected_trainable}")
@@ -232,6 +232,31 @@ class GendAugTrainer:
         self.val_conds = [allc[n] for n in self.val_names]
         self._val_recs: dict[str, list[FrameRecord]] = {}
         self.t_start = time.time()
+
+    # ---- hooks (overridden by dcfg.lumen2.train.Lumen2Trainer; defaults = GenD-aug behaviour)
+    #: uint8 HxWx3 -> uint8 map applied after the degradation in validation (the model's input form)
+    post_transform = staticmethod(gend_resize)
+
+    def _init_params(self) -> list[Tensor]:
+        return [p for _, p in set_trainable(self.model)]
+
+    def _trainable_state(self) -> dict[str, Tensor]:
+        return trainable_state(self.model)
+
+    def _load_trainable(self, sd: dict[str, Tensor]) -> None:
+        load_trainable(self.model, sd)
+
+    def _make_trainset(self, epoch: int, order: np.ndarray, skip: int) -> Dataset:
+        return GendTrainSet(TrainDataset(self.source, self.records, order, skip * self.eff, int(self.cfg["seed"]), epoch, self.deg))
+
+    def _micro_loss(self, mb: tuple) -> tuple[Tensor, dict[str, Tensor]]:
+        """Loss of one micro-batch ``(uint8 images, labels, record idx, ...)``."""
+        x = mb[0].to(self.dev, non_blocking=True).float().div_(255.0)
+        y = mb[1].to(self.dev, non_blocking=True)
+        with torch.autocast("cuda", dtype=torch.bfloat16, enabled=self.dev.type == "cuda"):
+            logits, z = self.model.features(x)
+        cfg = self.cfg
+        return gend_loss(logits, z, y, float(cfg["w_ce"]), float(cfg["w_uniformity"]), float(cfg["w_alignment"]))
 
     # ---- val
     def val_records(self, comp: str) -> list[FrameRecord]:
@@ -254,7 +279,7 @@ class GendAugTrainer:
         aucs, nfr = {}, {}
         for cond in self.val_conds:
             recs = self.val_records(condition_comp(cond))
-            ld = DataLoader(ConditionDataset(self.source, recs, cond, post_transform=gend_resize), batch_size=64,
+            ld = DataLoader(ConditionDataset(self.source, recs, cond, post_transform=self.post_transform), batch_size=64,
                             shuffle=False, num_workers=int(self.cfg["val_workers"]), pin_memory=self.dev.type == "cuda")
             prob = predict(self.model, ld, str(self.dev), fp16=True,
                            on_batch=lambda n: self.hb.beat(self.st["step"], phase="val", cond=cond.name, seen=n))
@@ -269,7 +294,7 @@ class GendAugTrainer:
 
     # ---- checkpoints
     def save_last(self) -> None:
-        _save_atomic({"trainable": trainable_state(self.model), "optimizer": self.opt.state_dict(),
+        _save_atomic({"trainable": self._trainable_state(), "optimizer": self.opt.state_dict(),
                       "scheduler": self.sched.state_dict(), "state": dict(self.st), "rng": _rng_state(),
                       "config": self.cfg}, self.run_dir / "last.pt")
 
@@ -282,7 +307,7 @@ class GendAugTrainer:
         diff = {k: v for k, v in diff.items() if k not in ("max_steps", "ckpt_every_steps")}  # smoke / ops knobs
         if diff and not self.cfg.get("allow_config_change"):
             raise RuntimeError(f"config differs from {last}: {diff}; pass --set allow_config_change=true to resume anyway")
-        load_trainable(self.model, ck["trainable"])
+        self._load_trainable(ck["trainable"])
         self.opt.load_state_dict(ck["optimizer"])
         self.sched.load_state_dict(ck["scheduler"])
         self.st = ck["state"]
@@ -307,7 +332,7 @@ class GendAugTrainer:
     # ---- train
     def _loader(self, epoch: int, order: np.ndarray, skip: int) -> DataLoader:
         nw = int(self.cfg["num_workers"])
-        ds = GendTrainSet(TrainDataset(self.source, self.records, order, skip * self.eff, int(self.cfg["seed"]), epoch, self.deg))
+        ds = self._make_trainset(epoch, order, skip)
         return DataLoader(ds, batch_size=self.bs, shuffle=False, drop_last=True, num_workers=nw,
                           pin_memory=self.dev.type == "cuda", prefetch_factor=2 if nw else None)
 
@@ -324,12 +349,8 @@ class GendAugTrainer:
                            f"{batch_hash(torch.tensor([r for m in mbs for r in m[2].tolist()]))}")
             self.opt.zero_grad(set_to_none=True)
             finite, terms_step = True, {}
-            for xb, yb, _ in mbs:
-                x = xb.to(self.dev, non_blocking=True).float().div_(255.0)
-                y = yb.to(self.dev, non_blocking=True)
-                with torch.autocast("cuda", dtype=torch.bfloat16, enabled=self.dev.type == "cuda"):
-                    logits, z = self.model.features(x)
-                loss, terms = gend_loss(logits, z, y, float(cfg["w_ce"]), float(cfg["w_uniformity"]), float(cfg["w_alignment"]))
+            for mb in mbs:
+                loss, terms = self._micro_loss(mb)
                 finite = finite and bool(torch.isfinite(loss))
                 (loss / self.accum).backward()
                 for k, v in {"loss": loss.detach(), **terms}.items():
@@ -379,7 +400,7 @@ class GendAugTrainer:
         better = v["mean_auc"] > st["best"]
         if better:
             st.update(best=v["mean_auc"], best_epoch=epoch, bad=0)
-            _save_atomic({"trainable": trainable_state(self.model), "epoch_1based": epoch + 1, "val_mean_auc": v["mean_auc"]},
+            _save_atomic({"trainable": self._trainable_state(), "epoch_1based": epoch + 1, "val_mean_auc": v["mean_auc"]},
                          self.run_dir / "best_trainable.pt")
         else:
             st["bad"] += 1
@@ -418,7 +439,7 @@ class GendAugTrainer:
         epochs_run = st["epoch"]
         stop_reason = "patience" if st["stopped"] else "epoch_cap"
         best = torch.load(self.run_dir / "best_trainable.pt", map_location="cpu", weights_only=False)
-        load_trainable(self.model, best["trainable"])
+        self._load_trainable(best["trainable"])
         full = self.run_dir / "best_full.pt"
         torch.save({k: v.detach().cpu() for k, v in self.model.state_dict().items()}, full)
         tr = self.run_dir / "best_trainable.pt"

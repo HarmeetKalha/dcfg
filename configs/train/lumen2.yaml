@@ -1,0 +1,36 @@
+# LUMEN2 = GenD-aug + LUMEN parts (sensor, DCT gate, conditional LayerNorm). Everything except the "LUMEN2 additions" block at the bottom is IDENTICAL to configs/train/gend_aug.yaml (a test enforces it).
+# Trained by `python -m dcfg.lumen2.train --config configs/train/lumen2.yaml`
+run_id: lumen2
+seed: 42
+comp: c23
+crops_root: null          # null -> ~/data/gend_crops (GenD RetinaFace re-crops, 256 px)
+epoch_mode: full          # = augft: every fake frame per epoch, reals re-cycled to 1:1
+batch_size: 32            # micro-batch (fits 12 GB: 8.0 GB peak)
+accum: 4                  # effective batch 128 (paper); uniformity/alignment are per 32-sample micro-batch, see module doc
+lr: 3.0e-4                # GenD (code default and paper)
+min_lr: 1.0e-5            # paper (code default 1e-6)
+warmup_epochs: 1          # paper: 1-epoch linear warm-up from min_lr, then cosine
+weight_decay: 0.0
+betas: [0.9, 0.999]
+w_ce: 1.0
+w_uniformity: 0.5
+w_alignment: 0.1
+max_epochs: 18            # cosine spans the 18-epoch cap
+patience: 6
+conditions_yaml: configs/eval/conditions.yaml   # val_conditions = the augft degraded val set
+val_frames_per_video: 8   # np.linspace over the key-sorted frames of each val video
+num_workers: 5
+val_workers: 5
+log_every: 50
+ckpt_every_steps: 400     # optimiser steps (1,435 per epoch)
+heartbeat_s: 60
+max_steps: null           # smoke only
+val_max_videos: null      # smoke only
+val_on_truncate: false    # smoke only
+smoke_steps: 50           # --smoke: 50 optimiser steps = 200 micro-steps
+allow_config_change: false
+pilot: false
+# ---- LUMEN2 additions (the only differences from GenD-aug)
+w_damage: 0.1             # 0.1 x damage_loss (BCE presence + MSE strength) on the sensor
+w_gate_penalty: 1.0e-4    # 1e-4 * mean((w-1)^2)
+require_pass_marker: runs/lumen2_smoke/PASS   # queued training only starts if the smoke job wrote this
