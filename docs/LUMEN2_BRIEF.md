@@ -80,12 +80,14 @@ resample matrix), 95% CI. Frame AUC unless stated.
 | ECE | 15 equal-width bins, P(fake) vs label, all degraded test frames | Secondary | CI < 0 |
 | Selective AUC 80% / 90% | most confident 80% / 90% by abs(p-0.5), all degraded frames | Secondary | CI > 0 at either |
 | Worst-case AUC | min frame AUC over all 22 degraded conditions (17 synthetic + 4 held-out + c40); per resample, min over conditions computed for each model, then differenced | Secondary | CI > 0 |
-| Heavy-damage mean AUC | mean frame AUC over exactly: jpeg_q10, blur_s4, noise_s20, resize_0.25, webp_q20, motion_k11, mixed_heavy (strongest level of each degradation type in the condition table, plus mixed-heavy; c40 excluded, reported on its own) | Secondary | CI > 0 |
+| Heavy-damage mean AUC | mean frame AUC over exactly: jpeg_q10, blur_s4, noise_s20, resize_0.25, mixed_heavy (strongest level of each SYNTHETIC degradation type, plus mixed-heavy; WebP/motion are already in the held-out mean, c40 is reported on its own) | Secondary | CI > 0 |
 | Video AUC, synthetic mean | video AUC (mean frame prob per video), mean over the 17 synthetic conditions | Secondary | CI > 0 |
 | Video AUC, c40 | video AUC on c40 | Secondary | CI > 0 |
 | DFD under damage | frame AUC on DFD with mixed_heavy applied (same seeding rule) | Secondary | CI > 0 |
 | Clean c23 AUC | frame AUC, clean c23 test | **Safety** | CI not entirely < 0 |
 | Clean DFD AUC | frame AUC, clean DFD | **Safety** | CI not entirely < 0 |
+
+Amended 2026-11-21 (user decision, before any LUMEN2 code, training or results): heavy-damage list changed to synthetic types only (webp_q20, motion_k11 removed to avoid double-counting with the held-out mean).
 
 Exploratory (reported, never used as a claim): AP, EER, every single condition, sensor accuracy.
 "Worth publishing" rule unchanged (wins primary OR >= 1 secondary, passes BOTH safety checks, and a later LUMEN-uncond
