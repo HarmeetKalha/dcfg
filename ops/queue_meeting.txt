@@ -1,0 +1,3 @@
+# Meeting queue (runner: DCFG_QUEUE_FILE=ops/queue_meeting.txt ops/run_queue.sh, default runs root runs/).
+# The runner re-reads this file after every job and EXITS when no unfinished job is left: if you append later, restart it.
+gate_heatmaps_lumen1 | .venv/bin/python -m dcfg.analysis.gate_heatmaps --run lumen_xception --fixed-run fixed_xception --out results/gate/lumen1 --workers 5 #noheartbeat
