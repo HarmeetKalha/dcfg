@@ -87,6 +87,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--crops-root", default=None, help="override the crop root (e.g. DFD crops)")
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--workers", type=int, default=5)
+    ap.add_argument("--trainable", default=None, help="trainable-only checkpoint (best_trainable.pt of dcfg.gend.train_gend_aug) "
+                    "loaded onto the public GenD weights (GenD-aug); the run id must differ from gend_public")
     ap.add_argument("--fp32", action="store_true", help="fp32 instead of fp16 autocast")
     ap.add_argument("--n-boot", type=int, default=1000)
     ap.add_argument("--force", action="store_true")
@@ -103,6 +105,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     source = CropSource(root, json_path=a.json, frames_root=root if a.json else None)
     model = load_gend("cuda").eval()
     extra = provenance(a.crops, not a.fp32)
+    if a.trainable:
+        if a.run == "gend_public":
+            raise SystemExit("--trainable needs a run id other than gend_public")
+        from dcfg.gend.train_gend_aug import load_trainable
+
+        ck = torch.load(a.trainable, map_location="cpu", weights_only=False)
+        load_trainable(model, ck["trainable"])
+        model.eval()
+        extra |= {"trainable_file": str(a.trainable), "trainable_sha256": sha256_file(Path(a.trainable)),
+                  "trained_epoch_1based": ck.get("epoch_1based"), "train_val_mean_auc": ck.get("val_mean_auc"),
+                  "init_is_public_gend": True}
     for cond in todo:
         t0 = time.time()
         p = evaluate_condition(run_id=a.run, detector="gend_clip_l14", cond=cond, split=a.split, source=source,

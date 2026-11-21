@@ -1,0 +1,7 @@
+# GenD-aug queue (separate from ops/queue.txt and ops/queue_lumen2.txt). Run: DCFG_QUEUE_FILE=ops/queue_gend_aug.txt nohup setsid ops/run_queue.sh >/dev/null 2>&1 &
+gendaug_recrop_val | third_party/GenD/.venv/bin/python -I -m dcfg.gend.recrop --comp c23 --split val --workers 6 #noheartbeat
+gendaug_recrop_train | third_party/GenD/.venv/bin/python -I -m dcfg.gend.recrop --comp c23 --split train --workers 6 #noheartbeat
+gendaug_smoke | third_party/GenD/.venv/bin/python -I -m dcfg.gend.train_gend_aug --config configs/train/gend_aug.yaml --smoke #noheartbeat
+gendaug_train | test -f runs/gendaug_smoke/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.gend.train_gend_aug --config configs/train/gend_aug.yaml #noheartbeat
+gendaug_eval | test -f runs/gendaug_train/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.gend.evaluate_gend --run gend_aug --conditions all --out-dir results/lumen2/gend_aug --trainable runs/gendaug_train/best_trainable.pt #noheartbeat
+gendaug_report | test -f runs/gendaug_eval/DONE && python -m dcfg.gend.gend_aug_report #noheartbeat

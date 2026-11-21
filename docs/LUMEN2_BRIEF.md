@@ -61,3 +61,9 @@ Gate PASSED. DFD paused (see PROGRESS.md).
 - GenD-aug starts from GenD's public weights (`yermandy/GenD_CLIP_L_14`), not plain CLIP.
 - Any later LUMEN2 model starts from the same weights, with the same data, degradation stream and schedule.
 - Whether we continue to LUMEN2 is decided by the user after seeing GenD-aug results; there is no automatic rule.
+
+## FIXED training schedule for GenD-aug and every later LUMEN2 run (user decision, 2026-11-20)
+- Training frames: exactly the augft training frames (FF++ c23 train, all frames per video, same epoch definition: all fake frames, reals re-cycled to 1:1), GenD RetinaFace crops, our PLAN 7.2 degradation applied to the 256 px crop before GenD's resize + normalisation.
+- Validation: the same degraded val set as augft (clean, jpeg_q50, jpeg_q30, blur_s2, noise_s10, mixed_heavy), subsampled to 8 of the ~32 frames per video with `np.linspace` over the key-sorted frames (deterministic, hash recorded); selection metric = mean frame AUC over these conditions (as augft); val only.
+- AdamW, cosine over the 18-epoch cap, max 18 epochs, patience 6, seed 42, GenD's recipe (LayerNorm + L2-normalised head, CE + 0.5 uniformity + 0.1 alignment, lr 3e-4, weight decay 0, bf16), effective batch 128 (4 x 32), min lr 1e-5, 1-epoch warm-up. Details and deviations: DECISIONS.md rows of 2026-11-20.
+- Every run logs `stop_reason` ("patience" or "epoch_cap"), best epoch, stop epoch and the val curve; a run that hits the cap while still improving is flagged.

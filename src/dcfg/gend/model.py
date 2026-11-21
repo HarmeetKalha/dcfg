@@ -35,10 +35,15 @@ class GendCLIP(nn.Module):
         self.register_buffer("mean", torch.tensor(CLIP_MEAN).view(1, 3, 1, 1), persistent=False)
         self.register_buffer("std", torch.tensor(CLIP_STD).view(1, 3, 1, 1), persistent=False)
 
+    def features(self, x01: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """``x01``: float (B,3,224,224) in [0,1], RGB. Returns ``(logits (B,2), l2 embeddings (B,1024))`` (GenD training)."""
+        feats = self.vision(pixel_values=(x01 - self.mean) / self.std).pooler_output
+        z = F.normalize(feats, p=2, dim=1)
+        return self.linear(z), z
+
     def forward(self, x01: torch.Tensor) -> torch.Tensor:
         """``x01``: float (B,3,224,224) in [0,1], RGB. Returns the fake logit (B,)."""
-        feats = self.vision(pixel_values=(x01 - self.mean) / self.std).pooler_output
-        l = self.linear(F.normalize(feats, p=2, dim=1))
+        l, _ = self.features(x01)
         return l[:, 1] - l[:, 0]
 
 

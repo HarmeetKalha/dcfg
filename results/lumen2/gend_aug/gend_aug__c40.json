@@ -1,0 +1,45 @@
+{
+  "run_id": "gend_aug",
+  "detector": "gend_clip_l14",
+  "condition": "c40",
+  "split": "test",
+  "compression": "c40",
+  "n_frames": 22340,
+  "n_videos": 700,
+  "frame_auc": 0.8570117989461172,
+  "frame_auc_ci": [
+    0.8302923615041061,
+    0.8816969287355424
+  ],
+  "video_auc": 0.9083673469387755,
+  "video_auc_ci": [
+    0.8820821640880636,
+    0.9320118811842919
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": true,
+  "git_commit": "22e3be8113793199b1c1ae8cf0e29f41d1d5f605-dirty",
+  "dfb_commit": "n/a",
+  "timestamp": "2026-11-21T10:12:16.517024+00:00",
+  "scores_file": "scores/gend_aug__c40.npz",
+  "pilot": false,
+  "lumen2": true,
+  "model_id": "yermandy/GenD_CLIP_L_14",
+  "hf_revision": "891ce014a0308386c4d7d25b3dcf436a22db5504",
+  "weights_sha256": "d76f0bdfd74a29fe1b1c1b84a80ac92486993e426878e8c7a3944281fbb96833",
+  "gend_commit": "387a42266dd385fbe8f7626c5d3aa03eea3bfaab",
+  "crops": "gend",
+  "preprocessing": "GenD crop: RetinaFace det_10g (largest face, det thr 0.5 then 0.1, DFB-crop fallback), GenD align_face scale 1.3 -> 256x256 re-cropped from the original videos at the SAME 32 DFB frame indices; degradation (our apply_condition, same seeds/keys) applied on the 256 px crop; then GenD/CLIP input transform: PIL bicubic 224x224, CLIP mean/std; frame prob = softmax(l)[1]; video = mean frame prob",
+  "degradation_placement": "256 px crop, before GenD's 224 resize",
+  "input_size": 224,
+  "trainable_file": "runs/gendaug_train/best_trainable.pt",
+  "trainable_sha256": "4d68ff72e0e49e73d6a5fff352b6fb124507086bfcaf34edd01cb70a7f0329e9",
+  "trained_epoch_1based": 17,
+  "train_val_mean_auc": 0.9199303149679631,
+  "init_is_public_gend": true
+}
