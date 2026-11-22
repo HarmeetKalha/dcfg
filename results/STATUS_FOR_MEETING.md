@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Sun 22 Nov 07:33 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Sun 22 Nov 07:35 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: 863c920 after gate_ablation: gate ablation: LUMEN1 - no-gate frame AUC synth +0.0104 [+0.0043,+0.016
+Last commit: a1a33c6 after lumen2_smoke: LUMEN2 smoke NO PASS: 18 epochs ~26.3 h (limit 30), step0 True, stream T
 
 ## Queue and ETA
 
@@ -14,30 +14,30 @@ Last commit: 863c920 after gate_ablation: gate ablation: LUMEN1 - no-gate frame 
 - `eval_lumen_nogate_xception`: done
 - `gate_ablation`: done
 - `lumen2_smoke`: done
-- `lumen2_train`: pending, ETA Mon 23 Nov 11:03 IST
-- `lumen2_eval`: pending, ETA Mon 23 Nov 13:33 IST
-- `lumen2_bench`: pending, ETA Mon 23 Nov 14:08 IST
-- `lumen2_report`: pending, ETA Mon 23 Nov 15:08 IST
-- `gate_heatmaps_lumen2_collect`: pending, ETA Mon 23 Nov 16:08 IST
-- `gate_heatmaps_lumen2`: pending, ETA Mon 23 Nov 16:33 IST
-- `dfd_gend_public`: pending, ETA Mon 23 Nov 17:33 IST
-- `dfd_gend_aug`: pending, ETA Mon 23 Nov 18:33 IST
-- `dfd_lumen2`: pending, ETA Mon 23 Nov 19:33 IST
-- `dfd_base_xception`: pending, ETA Mon 23 Nov 20:33 IST
-- `dfd_augft_xception`: pending, ETA Mon 23 Nov 21:33 IST
-- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 22:33 IST
-- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 23:33 IST
-- `dfd_lumen_nogate_xception`: pending, ETA Tue 24 Nov 00:33 IST
-- `dfd_reports`: pending, ETA Tue 24 Nov 01:33 IST
-- `lumen2_final`: pending, ETA Tue 24 Nov 02:33 IST
+- `lumen2_train`: FAILED
+- `lumen2_eval`: pending, ETA Sun 22 Nov 10:05 IST
+- `lumen2_bench`: pending, ETA Sun 22 Nov 10:40 IST
+- `lumen2_report`: pending, ETA Sun 22 Nov 11:40 IST
+- `gate_heatmaps_lumen2_collect`: pending, ETA Sun 22 Nov 12:40 IST
+- `gate_heatmaps_lumen2`: pending, ETA Sun 22 Nov 13:05 IST
+- `dfd_gend_public`: pending, ETA Sun 22 Nov 14:05 IST
+- `dfd_gend_aug`: pending, ETA Sun 22 Nov 15:05 IST
+- `dfd_lumen2`: pending, ETA Sun 22 Nov 16:05 IST
+- `dfd_base_xception`: pending, ETA Sun 22 Nov 17:05 IST
+- `dfd_augft_xception`: pending, ETA Sun 22 Nov 18:05 IST
+- `dfd_lumen_xception`: pending, ETA Sun 22 Nov 19:05 IST
+- `dfd_fixed_xception`: pending, ETA Sun 22 Nov 20:05 IST
+- `dfd_lumen_nogate_xception`: pending, ETA Sun 22 Nov 21:05 IST
+- `dfd_reports`: pending, ETA Sun 22 Nov 22:05 IST
+- `lumen2_final`: pending, ETA Sun 22 Nov 23:05 IST
 
 ### Runner: background (DFD) (alive: yes)
 - `bg_dl_dfd_original`: done
 - `bg_dl_dfd_fakes`: done
-- `bg_recrop_dfd`: RUNNING: running; ETA Sun 22 Nov 08:03 IST
-- `bg_dfb_pre_dfd`: pending, ETA Sun 22 Nov 08:33 IST
+- `bg_recrop_dfd`: RUNNING: running; ETA Sun 22 Nov 08:05 IST
+- `bg_dfb_pre_dfd`: pending, ETA Sun 22 Nov 08:35 IST
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Tue 24 Nov 02:33 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Sun 22 Nov 23:05 IST
 
 ## Finished results
 
