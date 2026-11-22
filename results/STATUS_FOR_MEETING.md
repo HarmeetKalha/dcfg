@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Sun 22 Nov 07:41 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Sun 22 Nov 08:59 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: 5d89f7e after lumen2_bench: LUMEN2 inference xnan vs GenD-aug, None LUMEN params
+Last commit: 9b4de81 after lumen2_report: LUMEN2 eval report written
 
 ## Queue and ETA
 
@@ -18,26 +18,26 @@ Last commit: 5d89f7e after lumen2_bench: LUMEN2 inference xnan vs GenD-aug, None
 - `lumen2_eval`: FAILED
 - `lumen2_bench`: FAILED
 - `lumen2_report`: FAILED
-- `gate_heatmaps_lumen2_collect`: pending, ETA Sun 22 Nov 08:41 IST
-- `gate_heatmaps_lumen2`: pending, ETA Sun 22 Nov 09:06 IST
-- `dfd_gend_public`: pending, ETA Sun 22 Nov 10:06 IST
-- `dfd_gend_aug`: pending, ETA Sun 22 Nov 11:06 IST
-- `dfd_lumen2`: pending, ETA Sun 22 Nov 12:06 IST
-- `dfd_base_xception`: pending, ETA Sun 22 Nov 13:06 IST
-- `dfd_augft_xception`: pending, ETA Sun 22 Nov 14:06 IST
-- `dfd_lumen_xception`: pending, ETA Sun 22 Nov 15:06 IST
-- `dfd_fixed_xception`: pending, ETA Sun 22 Nov 16:06 IST
-- `dfd_lumen_nogate_xception`: pending, ETA Sun 22 Nov 17:06 IST
-- `dfd_reports`: pending, ETA Sun 22 Nov 18:06 IST
-- `lumen2_final`: pending, ETA Sun 22 Nov 19:06 IST
+- `gate_heatmaps_lumen2_collect`: FAILED
+- `gate_heatmaps_lumen2`: FAILED
+- `dfd_gend_public`: done
+- `dfd_gend_aug`: pending, ETA Sun 22 Nov 09:59 IST
+- `dfd_lumen2`: pending, ETA Sun 22 Nov 10:59 IST
+- `dfd_base_xception`: pending, ETA Sun 22 Nov 11:59 IST
+- `dfd_augft_xception`: pending, ETA Sun 22 Nov 12:59 IST
+- `dfd_lumen_xception`: pending, ETA Sun 22 Nov 13:59 IST
+- `dfd_fixed_xception`: pending, ETA Sun 22 Nov 14:59 IST
+- `dfd_lumen_nogate_xception`: pending, ETA Sun 22 Nov 15:59 IST
+- `dfd_reports`: pending, ETA Sun 22 Nov 16:59 IST
+- `lumen2_final`: pending, ETA Sun 22 Nov 17:59 IST
 
 ### Runner: background (DFD) (alive: yes)
 - `bg_dl_dfd_original`: done
 - `bg_dl_dfd_fakes`: done
-- `bg_recrop_dfd`: RUNNING: running; ETA Sun 22 Nov 08:11 IST
-- `bg_dfb_pre_dfd`: pending, ETA Sun 22 Nov 08:41 IST
+- `bg_recrop_dfd`: done
+- `bg_dfb_pre_dfd`: RUNNING: running; ETA Sun 22 Nov 09:29 IST
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Sun 22 Nov 19:06 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Sun 22 Nov 17:59 IST
 
 ## Finished results
 
@@ -110,9 +110,6 @@ Verdict: **NO PASS (training not started)**
 | part | params |
 |---|---|
 
-### DFD prep (background, CPU)
-bg_dl_dfd_original: done
-bg_dl_dfd_fakes: done
-bg_recrop_dfd: pending/running
-bg_dfb_pre_dfd: pending/running
+### DFD (GenD public, clean)
+frame AUC 0.8924, video AUC 0.9349
 
