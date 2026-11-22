@@ -197,8 +197,10 @@ def resume_check(cfg: dict[str, Any], run_dir: Path, n: int = 40) -> dict[str, A
     hashes = lambda p: [ln.split()[-1] for ln in p.read_text().splitlines() if ln and not ln.startswith("#")]  # noqa: E731
     sb = trainable_state(tb.model)
     md = max(float((sa[k] - sb[k]).abs().max()) for k in sa if k in pn)
-    rel = lambda x, y: float(((x.float() - y.float()).abs() / (x.float().abs() + y.float().abs() + 1e-3)).max())  # noqa: E731
-    md_buf = max(rel(sa[k], sb[k]) for k in sa if k not in pn)  # BatchNorm running stats: relative difference
+    # BatchNorm running stats: max |diff| relative to the tensor's own scale (per-element relative diff blows up for
+    # running means near 0; fixed 2026-11-22 after a false FAIL, see DECISIONS.md)
+    rel = lambda x, y: float((x.float() - y.float()).abs().max() / (x.float().abs().max() + 1e-6))  # noqa: E731
+    md_buf = max(rel(sa[k], sb[k]) for k in sa if k not in pn)
     out = {"steps": n, "resumed": "# resumed" in (b_dir / "batches.log").read_text(), "batch_hashes_equal": hashes(a_dir / "batches.log") == hashes(b_dir / "batches.log"),
            "max_abs_param_diff": md, "max_abs_buffer_diff": md_buf}
     out["pass"] = bool(out["resumed"] and out["batch_hashes_equal"] and md < 5e-3 and md_buf < 5e-2)
