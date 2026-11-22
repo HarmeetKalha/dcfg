@@ -15,7 +15,7 @@ after_gate_ablation | ops/jobs/after_job.sh gate_ablation #noheartbeat
 # ---- LUMEN2 (appended 2026-11-21): smoke -> train -> eval -> bench -> report -> gate heatmaps -> DFD -> final. GenD venv jobs use third_party/GenD/.venv (-I).
 lumen2_smoke | third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.smoke --config configs/train/lumen2.yaml #noheartbeat
 after_lumen2_smoke | ops/jobs/after_job.sh lumen2_smoke #noheartbeat
-lumen2_train | test -f runs/lumen2_smoke/PASS && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.train --config configs/train/lumen2.yaml #noheartbeat
+lumen2_train | test -f runs/lumen2_smoke/PASS && ops/jobs/retry_supervised.sh 10 third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.train --config configs/train/lumen2.yaml #noheartbeat
 after_lumen2_train | ops/jobs/after_job.sh lumen2_train #noheartbeat
 lumen2_eval | test -f runs/lumen2_train/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.evaluate_lumen2 --run lumen2 --trainable runs/lumen2_train/best_trainable.pt --conditions all --out-dir results/lumen2/lumen2 #noheartbeat
 after_lumen2_eval | ops/jobs/after_job.sh lumen2_eval #noheartbeat
