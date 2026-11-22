@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Sun 22 Nov 07:08 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Sun 22 Nov 07:33 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: de18f55 after eval_lumen_nogate_xception: LUMEN1-no-gate frame AUC: clean 0.975 (LUMEN1 0.974), synt
+Last commit: 863c920 after gate_ablation: gate ablation: LUMEN1 - no-gate frame AUC synth +0.0104 [+0.0043,+0.016
 
 ## Queue and ETA
 
@@ -13,31 +13,31 @@ Last commit: de18f55 after eval_lumen_nogate_xception: LUMEN1-no-gate frame AUC:
 - `lumen_nogate_xception`: done
 - `eval_lumen_nogate_xception`: done
 - `gate_ablation`: done
-- `lumen2_smoke`: pending, ETA Sun 22 Nov 08:23 IST
-- `lumen2_train`: pending, ETA Mon 23 Nov 11:53 IST
-- `lumen2_eval`: pending, ETA Mon 23 Nov 14:23 IST
-- `lumen2_bench`: pending, ETA Mon 23 Nov 14:58 IST
-- `lumen2_report`: pending, ETA Mon 23 Nov 15:58 IST
-- `gate_heatmaps_lumen2_collect`: pending, ETA Mon 23 Nov 16:58 IST
-- `gate_heatmaps_lumen2`: pending, ETA Mon 23 Nov 17:23 IST
-- `dfd_gend_public`: pending, ETA Mon 23 Nov 18:23 IST
-- `dfd_gend_aug`: pending, ETA Mon 23 Nov 19:23 IST
-- `dfd_lumen2`: pending, ETA Mon 23 Nov 20:23 IST
-- `dfd_base_xception`: pending, ETA Mon 23 Nov 21:23 IST
-- `dfd_augft_xception`: pending, ETA Mon 23 Nov 22:23 IST
-- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 23:23 IST
-- `dfd_fixed_xception`: pending, ETA Tue 24 Nov 00:23 IST
-- `dfd_lumen_nogate_xception`: pending, ETA Tue 24 Nov 01:23 IST
-- `dfd_reports`: pending, ETA Tue 24 Nov 02:23 IST
-- `lumen2_final`: pending, ETA Tue 24 Nov 03:23 IST
+- `lumen2_smoke`: done
+- `lumen2_train`: pending, ETA Mon 23 Nov 11:03 IST
+- `lumen2_eval`: pending, ETA Mon 23 Nov 13:33 IST
+- `lumen2_bench`: pending, ETA Mon 23 Nov 14:08 IST
+- `lumen2_report`: pending, ETA Mon 23 Nov 15:08 IST
+- `gate_heatmaps_lumen2_collect`: pending, ETA Mon 23 Nov 16:08 IST
+- `gate_heatmaps_lumen2`: pending, ETA Mon 23 Nov 16:33 IST
+- `dfd_gend_public`: pending, ETA Mon 23 Nov 17:33 IST
+- `dfd_gend_aug`: pending, ETA Mon 23 Nov 18:33 IST
+- `dfd_lumen2`: pending, ETA Mon 23 Nov 19:33 IST
+- `dfd_base_xception`: pending, ETA Mon 23 Nov 20:33 IST
+- `dfd_augft_xception`: pending, ETA Mon 23 Nov 21:33 IST
+- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 22:33 IST
+- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 23:33 IST
+- `dfd_lumen_nogate_xception`: pending, ETA Tue 24 Nov 00:33 IST
+- `dfd_reports`: pending, ETA Tue 24 Nov 01:33 IST
+- `lumen2_final`: pending, ETA Tue 24 Nov 02:33 IST
 
 ### Runner: background (DFD) (alive: yes)
 - `bg_dl_dfd_original`: done
 - `bg_dl_dfd_fakes`: done
-- `bg_recrop_dfd`: RUNNING: running; ETA Sun 22 Nov 07:38 IST
-- `bg_dfb_pre_dfd`: pending, ETA Sun 22 Nov 08:08 IST
+- `bg_recrop_dfd`: RUNNING: running; ETA Sun 22 Nov 08:03 IST
+- `bg_dfb_pre_dfd`: pending, ETA Sun 22 Nov 08:33 IST
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Tue 24 Nov 03:23 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Tue 24 Nov 02:33 IST
 
 ## Finished results
 
@@ -95,6 +95,20 @@ Frame/video AUC on the FF++ c23 test split (+ c40), 95% video-level bootstrap CI
 |---|---|---|---|---|---|---|---|---|---|---|
 | GenD (public) | 0.9601 [0.9496, 0.9702] | 0.8680 [0.8503, 0.8864] | 0.8695 [0.8516, 0.8879] | 0.8010 [0.7727, 0.8280] | 0.8395 [0.8117, 0.8663] | 0.8211 [0.7925, 0.8485] | 0.8049 [0.7731, 0.8329] | 0.7604 [0.7261, 0.7927] | 0.7882 [0.7593, 0.8154] | 0.7845 [0.7555, 0.8130] |
 | GenD-aug | 0.9730 [0.9644, 0.9804] | 0.9170 [0.9033, 0.9320] | 0.9159 [0.9024, 0.9314] | 0.8570 [0.8303, 0.8817] | 0.9023 [0.8837, 0.9182] | 0.8884 [0.8684, 0.9066] | 0.8999 [0.8810, 0.9179] | 0.8738 [0.8519, 0.8945] | 0.8403 [0.8165, 0.8623] | 0.8492 [0.8261, 0.8715] |
+
+### LUMEN2 smoke test
+# LUMEN2 smoke test
+Verdict: **NO PASS (training not started)**
+| check | result |
+|---|---|
+| step-0 LUMEN2 == GenD | max |logit diff| 6.03e-04, max |embedding diff| 1.15e-04, w all 1: True -> ok |
+| damaged-image stream == GenD-aug | 224 view and 256 view hashes equal in 2 slices; 25830 record-order hashes vs runs/gendaug_train/batches.log, 0 mismatches -> ok |
+| 300 optimiser steps (1200 micro-steps) | main loss -1.3488 -> -1.4377, sensor loss 0.7782 -> 0.7268 (first -> last quarter), NaN steps 0, U/V abs sums 407/413 -> ok |
+| resume | resumed True, batch hashes equal True, max |param diff| 3.62e-04, BN buffers (max relative diff) 7.36e-01 -> FAIL |
+| time | 37.6 img/s -> epoch train 81.4 min + val 6.4 min; 18 epochs = **26.3 h** (limit 30 h); peak GPU 8486 MB |
+## Parameters per part
+| part | params |
+|---|---|
 
 ### DFD prep (background, CPU)
 bg_dl_dfd_original: done
