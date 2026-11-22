@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Sun 22 Nov 07:07 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Sun 22 Nov 07:08 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: 42d8307 after lumen_nogate_xception: LUMEN1-no-gate trained: 23 epochs, best epoch 16, val mean AUC 
+Last commit: de18f55 after eval_lumen_nogate_xception: LUMEN1-no-gate frame AUC: clean 0.975 (LUMEN1 0.974), synt
 
 ## Queue and ETA
 
@@ -12,32 +12,32 @@ Last commit: 42d8307 after lumen_nogate_xception: LUMEN1-no-gate trained: 23 epo
 - `sensor_eval`: done
 - `lumen_nogate_xception`: done
 - `eval_lumen_nogate_xception`: done
-- `gate_ablation`: pending, ETA Sun 22 Nov 07:42 IST
-- `lumen2_smoke`: pending, ETA Sun 22 Nov 08:57 IST
-- `lumen2_train`: pending, ETA Mon 23 Nov 12:27 IST
-- `lumen2_eval`: pending, ETA Mon 23 Nov 14:57 IST
-- `lumen2_bench`: pending, ETA Mon 23 Nov 15:32 IST
-- `lumen2_report`: pending, ETA Mon 23 Nov 16:32 IST
-- `gate_heatmaps_lumen2_collect`: pending, ETA Mon 23 Nov 17:32 IST
-- `gate_heatmaps_lumen2`: pending, ETA Mon 23 Nov 17:57 IST
-- `dfd_gend_public`: pending, ETA Mon 23 Nov 18:57 IST
-- `dfd_gend_aug`: pending, ETA Mon 23 Nov 19:57 IST
-- `dfd_lumen2`: pending, ETA Mon 23 Nov 20:57 IST
-- `dfd_base_xception`: pending, ETA Mon 23 Nov 21:57 IST
-- `dfd_augft_xception`: pending, ETA Mon 23 Nov 22:57 IST
-- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 23:57 IST
-- `dfd_fixed_xception`: pending, ETA Tue 24 Nov 00:57 IST
-- `dfd_lumen_nogate_xception`: pending, ETA Tue 24 Nov 01:57 IST
-- `dfd_reports`: pending, ETA Tue 24 Nov 02:57 IST
-- `lumen2_final`: pending, ETA Tue 24 Nov 03:57 IST
+- `gate_ablation`: done
+- `lumen2_smoke`: pending, ETA Sun 22 Nov 08:23 IST
+- `lumen2_train`: pending, ETA Mon 23 Nov 11:53 IST
+- `lumen2_eval`: pending, ETA Mon 23 Nov 14:23 IST
+- `lumen2_bench`: pending, ETA Mon 23 Nov 14:58 IST
+- `lumen2_report`: pending, ETA Mon 23 Nov 15:58 IST
+- `gate_heatmaps_lumen2_collect`: pending, ETA Mon 23 Nov 16:58 IST
+- `gate_heatmaps_lumen2`: pending, ETA Mon 23 Nov 17:23 IST
+- `dfd_gend_public`: pending, ETA Mon 23 Nov 18:23 IST
+- `dfd_gend_aug`: pending, ETA Mon 23 Nov 19:23 IST
+- `dfd_lumen2`: pending, ETA Mon 23 Nov 20:23 IST
+- `dfd_base_xception`: pending, ETA Mon 23 Nov 21:23 IST
+- `dfd_augft_xception`: pending, ETA Mon 23 Nov 22:23 IST
+- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 23:23 IST
+- `dfd_fixed_xception`: pending, ETA Tue 24 Nov 00:23 IST
+- `dfd_lumen_nogate_xception`: pending, ETA Tue 24 Nov 01:23 IST
+- `dfd_reports`: pending, ETA Tue 24 Nov 02:23 IST
+- `lumen2_final`: pending, ETA Tue 24 Nov 03:23 IST
 
 ### Runner: background (DFD) (alive: yes)
 - `bg_dl_dfd_original`: done
 - `bg_dl_dfd_fakes`: done
-- `bg_recrop_dfd`: RUNNING: running; ETA Sun 22 Nov 07:37 IST
-- `bg_dfb_pre_dfd`: pending, ETA Sun 22 Nov 08:07 IST
+- `bg_recrop_dfd`: RUNNING: running; ETA Sun 22 Nov 07:38 IST
+- `bg_dfb_pre_dfd`: pending, ETA Sun 22 Nov 08:08 IST
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Tue 24 Nov 03:57 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Tue 24 Nov 03:23 IST
 
 ## Finished results
 
@@ -61,6 +61,21 @@ Full report: `results/sensor/standalone.md`.
 
 ### Earlier: LIVE-pretrained sensor (quality regression)
 {"job_id": "sensor_live", "n_train": 930, "n_val": 116, "n_test": 116, "best_epoch": 66, "best_val_srcc": 0.6867950640064583, "epochs_run": 86}
+
+### Step 3: gate ablation (Xception) - done
+## Frame AUC (95% CI)
+| model | clean | synthetic mean (17) | held-out mean (4) | c40 | heavy-damage mean (5) | worst case (min of 22 degraded) |
+|---|---|---|---|---|---|---|
+| Xception base | 0.9761 [0.9685, 0.9828] | 0.8175 [0.8017, 0.8317] | 0.8771 [0.8576, 0.8956] | 0.8046 [0.7770, 0.8324] | 0.6914 [0.6696, 0.7113] | 0.5405 [0.4986, 0.5801] |
+| Fixed gate | 0.9651 [0.9547, 0.9742] | 0.8414 [0.8235, 0.8574] | 0.8745 [0.8538, 0.8946] | 0.8108 [0.7820, 0.8376] | 0.7235 [0.7024, 0.7438] | 0.6476 [0.6029, 0.6787] |
+| LUMEN1 without gate | 0.9747 [0.9657, 0.9823] | 0.8891 [0.8726, 0.9045] | 0.8852 [0.8673, 0.9031] | 0.8335 [0.8086, 0.8587] | 0.8137 [0.7931, 0.8345] | 0.7642 [0.7352, 0.7881] |
+| LUMEN1 | 0.9742 [0.9647, 0.9816] | 0.8995 [0.8833, 0.9151] | 0.8871 [0.8687, 0.9036] | 0.8265 [0.8003, 0.8516] | 0.8299 [0.8085, 0.8515] | 0.7722 [0.7405, 0.7998] |
+| augft (full fine-tune) | 0.9743 [0.9656, 0.9820] | 0.9286 [0.9159, 0.9410] | 0.9174 [0.9009, 0.9320] | 0.8722 [0.8511, 0.8932] | 0.8820 [0.8650, 0.8986] | 0.8368 [0.8122, 0.8595] |
+## Video AUC (95% CI)
+| model | clean | synthetic mean (17) | held-out mean (4) | c40 | heavy-damage mean (5) | worst case (min of 22 degraded) |
+|---|---|---|---|---|---|---|
+| Xception base | 0.9895 [0.9832, 0.9946] | 0.8555 [0.8390, 0.8699] | 0.9223 [0.9029, 0.9399] | 0.8650 [0.8349, 0.8933] | 0.7357 [0.7100, 0.7597] | 0.5442 [0.4896, 0.5969] |
+Full table + paired differences: `results/gate/ablation_xception.md`.
 
 ### Xception frame AUC, point estimates
 | run | clean | synthetic mean | held-out | c40 | heavy (5) |
