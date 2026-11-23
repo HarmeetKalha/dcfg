@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Mon 23 Nov 13:07 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Mon 23 Nov 13:17 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: b0e1f8c after dfd_augft_xception: DFD augft_xception: frame AUC clean 0.7733, mixed_heavy 0.5490
+Last commit: 9aa3534 after dfd_lumen_xception: DFD lumen_xception: frame AUC clean 0.8111, mixed_heavy 0.5536
 
 ## Queue and ETA
 
@@ -26,10 +26,10 @@ Last commit: b0e1f8c after dfd_augft_xception: DFD augft_xception: frame AUC cle
 - `dfd_base_xception`: done
 - `dfd_augft_xception`: done
 - `dfd_lumen_xception`: done
-- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 14:07 IST
-- `dfd_lumen_nogate_xception`: pending, ETA Mon 23 Nov 15:07 IST
-- `dfd_reports`: pending, ETA Mon 23 Nov 16:07 IST
-- `lumen2_final`: pending, ETA Mon 23 Nov 17:07 IST
+- `dfd_fixed_xception`: done
+- `dfd_lumen_nogate_xception`: pending, ETA Mon 23 Nov 14:17 IST
+- `dfd_reports`: pending, ETA Mon 23 Nov 15:17 IST
+- `lumen2_final`: pending, ETA Mon 23 Nov 16:17 IST
 
 ### Runner: background (DFD) (alive: NO - restart it if jobs are pending)
 - `bg_dl_dfd_original`: done
@@ -37,7 +37,7 @@ Last commit: b0e1f8c after dfd_augft_xception: DFD augft_xception: frame AUC cle
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 17:07 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 16:17 IST
 
 ## Finished results
 
