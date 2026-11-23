@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Mon 23 Nov 11:52 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Mon 23 Nov 12:33 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: 06496e1 after gate_heatmaps_lumen2: LUMEN2 gate heatmaps + LUMEN1 side-by-side written (results/gate
+Last commit: 625736c after dfd_gend_aug: DFD gend_aug: frame AUC clean 0.8741, mixed_heavy 0.6719
 
 ## Queue and ETA
 
@@ -22,14 +22,14 @@ Last commit: 06496e1 after gate_heatmaps_lumen2: LUMEN2 gate heatmaps + LUMEN1 s
 - `gate_heatmaps_lumen2`: done
 - `dfd_gend_public`: done
 - `dfd_gend_aug`: done
-- `dfd_lumen2`: pending, ETA Mon 23 Nov 12:52 IST
-- `dfd_base_xception`: pending, ETA Mon 23 Nov 13:52 IST
-- `dfd_augft_xception`: pending, ETA Mon 23 Nov 14:52 IST
-- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 15:52 IST
-- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 16:52 IST
-- `dfd_lumen_nogate_xception`: pending, ETA Mon 23 Nov 17:52 IST
-- `dfd_reports`: pending, ETA Mon 23 Nov 18:52 IST
-- `lumen2_final`: pending, ETA Mon 23 Nov 19:52 IST
+- `dfd_lumen2`: done
+- `dfd_base_xception`: pending, ETA Mon 23 Nov 13:33 IST
+- `dfd_augft_xception`: pending, ETA Mon 23 Nov 14:33 IST
+- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 15:33 IST
+- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 16:33 IST
+- `dfd_lumen_nogate_xception`: pending, ETA Mon 23 Nov 17:33 IST
+- `dfd_reports`: pending, ETA Mon 23 Nov 18:33 IST
+- `lumen2_final`: pending, ETA Mon 23 Nov 19:33 IST
 
 ### Runner: background (DFD) (alive: NO - restart it if jobs are pending)
 - `bg_dl_dfd_original`: done
@@ -37,7 +37,7 @@ Last commit: 06496e1 after gate_heatmaps_lumen2: LUMEN2 gate heatmaps + LUMEN1 s
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 19:52 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 19:33 IST
 
 ## Finished results
 
