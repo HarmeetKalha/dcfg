@@ -69,7 +69,7 @@ def check_step0(trainer: Lumen2Trainer, n: int = 16) -> dict[str, Any]:
     imgs = [trainer.source.load(r) for r in recs]
     packed = torch.stack([torch.from_numpy(pack_views(i)).permute(2, 0, 1) for i in imgs]).float().div_(255.0).to(dev)
     x224 = torch.stack([torch.from_numpy(gend_resize(i)).permute(2, 0, 1) for i in imgs]).float().div_(255.0).to(dev)
-    fresh = build_lumen2("cpu").to(dev).eval()  # step-0 LUMEN2 (public GenD weights + zero-init parts), independent of the trained one
+    fresh = build_lumen2("cpu", conditioning=str(trainer.cfg.get("conditioning", "sensor"))).to(dev).eval()  # step-0 LUMEN2 (public GenD weights + zero-init parts), independent of the trained one
     gend = load_gend(str(dev)).eval()
     lg, zg = gend.features(x224)
     ll, zl, _, w = fresh.forward_train(packed)
@@ -236,6 +236,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--config", default="configs/train/lumen2.yaml")
     ap.add_argument("--run-dir", default=None)
     ap.add_argument("--steps", type=int, default=300)
+    ap.add_argument("--md", default=str(RESULTS_ROOT / "lumen2" / "lumen2_smoke.md"))
+    ap.add_argument("--name", default="LUMEN2", help="name used in phone notifications")
     ap.add_argument("--gendaug-log", default=str(RUNS_ROOT / "gendaug_train" / "batches.log"))
     a = ap.parse_args(argv)
     cfg = load_cfg(a.config)
@@ -256,15 +258,15 @@ def main(argv: list[str] | None = None) -> int:
     res["time_ok"] = bool(est["total_h"] <= LIMIT_H)
     res["pass"] = bool(res["step0"]["pass"] and res["stream"]["pass"] and res["train_check"]["loss_pass"] and res["resume"]["pass"] and res["time_ok"])
     (run_dir / "smoke.json").write_text(json.dumps(res, indent=2, default=float))
-    write_md(res, RESULTS_ROOT / "lumen2" / "lumen2_smoke.md")
+    write_md(res, Path(a.md))
     print(json.dumps({k: v for k, v in res.items() if k in ("pass", "time_ok")} | {"est_total_h": est["total_h"]}), flush=True)
     if res["pass"]:
         (run_dir / "PASS").write_text(f"pass, estimated {est['total_h']:.1f} h\n")
     elif not res["time_ok"]:
-        notify(f"LUMEN2 18 epochs would take {est['total_h']:.1f} h > {LIMIT_H:.0f} h, waiting for options (training NOT started)")
+        notify(f"{a.name} 18 epochs would take {est['total_h']:.1f} h > {LIMIT_H:.0f} h, waiting for options (training NOT started)")
     else:
         failed = [k for k in ("step0", "stream", "resume") if not res[k]["pass"]] + ([] if res["train_check"]["loss_pass"] else ["train_check"])
-        notify(f"LUMEN2 smoke FAILED ({', '.join(failed)}); training NOT started")
+        notify(f"{a.name} smoke FAILED ({', '.join(failed)}); training NOT started")
     return 0
 
 

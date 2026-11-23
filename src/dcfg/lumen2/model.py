@@ -18,6 +18,13 @@ needs the 256 crop, so the data pipeline packs both views of an image into ONE u
 (:func:`pack_views`: rows 0..255 = damaged 256 crop; rows 256..479, cols 0..223 = ``gend_resize`` of it, the rest zero). The model
 takes the packed float tensor ``(B, 3, 480, 256)`` in [0, 1] and returns the fake logit ``l[1] - l[0]`` (``forward``) or all
 training tensors (``forward_train``). State-dict key names of the GenD part are unchanged (``base.vision...``, ``base.linear``).
+
+**LUMEN-uncond control** (``conditioning="constant"``, docs/DECISIONS.md 2026-11-23): identical model, except the conditioning
+input of BOTH the DCT gate and the LayerNorm generator is ONE learned constant vector ``const`` (320 = 192 "DCT statistics" + 128
+"sensor embedding" slots; parameter name ``const``) instead of the per-image DCT log-energies and sensor embedding. Every image gets
+the same gate weights and the same LayerNorm shift. The sensor still runs and trains with its damage loss (its outputs are just not
+used for conditioning). ``const`` is drawn from N(0, 1) with its own generator (seed 42), so the global RNG and thus the
+initialisation of every other part is unchanged; the zero-initialised last layers keep step 0 == GenD.
 """
 from __future__ import annotations
 
@@ -31,7 +38,7 @@ from dcfg.degrade.sensor import EMBED_DIM, DamageSensor
 from dcfg.gend.crop import CROP_SIZE, INPUT_SIZE, gend_resize
 from dcfg.gend.model import GendCLIP, load_gend
 from dcfg.models.dct import BlockDCT, rgb_to_ycbcr, ycbcr_to_rgb
-from dcfg.models.gate import FrequencyGate, log_energy
+from dcfg.models.gate import N_COEF, FrequencyGate, log_energy
 
 RANK = 8
 GEN_HIDDEN = 128
@@ -40,6 +47,8 @@ PACK_W = CROP_SIZE  # 256
 GATE_PENALTY = 1e-4
 GENDTRAIN_PARAMS = 104_450  # GenD-aug trainable set: 102,400 LayerNorm + 2,050 head
 LN_KEYS = ("layer_norm", "layrnorm", "post_layernorm")
+CONDITIONING = ("sensor", "constant")
+CONST_SEED = 42
 
 
 # ------------------------------------------------------------------------------------------------ input packing
@@ -132,8 +141,11 @@ class LnGenerator(nn.Module):
 class Lumen2Model(nn.Module):
     """GenD + sensor + DCT gate + conditional LayerNorm. See the module docstring."""
 
-    def __init__(self, base: GendCLIP, sensor: DamageSensor | None = None) -> None:
+    def __init__(self, base: GendCLIP, sensor: DamageSensor | None = None, conditioning: str = "sensor") -> None:
         super().__init__()
+        if conditioning not in CONDITIONING:
+            raise ValueError(f"conditioning must be one of {CONDITIONING}, got {conditioning!r}")
+        self.conditioning = conditioning
         self.base = base
         self.cond_lns = convert_layernorms(base.vision)  # list of modules living inside ``base`` (not re-registered)
         dim = self.cond_lns[0].normalized_shape[0]
@@ -142,6 +154,9 @@ class Lumen2Model(nn.Module):
         self.dct = BlockDCT()
         self.gate = FrequencyGate(use_sensor=True, embed_dim=EMBED_DIM)
         self.gen = LnGenerator(len(self.cond_lns), dim)
+        if conditioning == "constant":  # LUMEN-uncond: own generator -> global RNG (other parts' init) untouched
+            g = torch.Generator().manual_seed(CONST_SEED)
+            self.const = nn.Parameter(torch.randn(N_COEF + EMBED_DIM, generator=g))
 
     # -- parameter bookkeeping
     @staticmethod
@@ -154,13 +169,15 @@ class Lumen2Model(nn.Module):
 
     @classmethod
     def is_trainable_name(cls, name: str) -> bool:
-        return cls.is_gend_name(name) or name.startswith(("sensor.", "gate.", "gen."))
+        return cls.is_gend_name(name) or name.startswith(("sensor.", "gate.", "gen.")) or name == "const"
 
     def part_param_counts(self) -> dict[str, int]:
         n = lambda m: sum(p.numel() for p in m.parameters())  # noqa: E731
         gend = sum(p.numel() for k, p in self.named_parameters() if self.is_gend_name(k))
         return {"gend_trainable (LayerNorms + head, = GenD-aug)": gend, "sensor": n(self.sensor), "gate (MLP + 2 LN)": n(self.gate),
-                "ln_generator (MLP + U,V)": n(self.gen), "LUMEN parts total": n(self.sensor) + n(self.gate) + n(self.gen)}
+                "ln_generator (MLP + U,V)": n(self.gen),
+                **({"constant conditioning vector": self.const.numel()} if self.conditioning == "constant" else {}),
+                "LUMEN parts total": n(self.sensor) + n(self.gate) + n(self.gen) + (self.const.numel() if self.conditioning == "constant" else 0)}
 
     # -- forward
     def _condition(self, s: Tensor | None) -> None:
@@ -179,9 +196,18 @@ class Lumen2Model(nn.Module):
         with torch.autocast(device_type=x.device.type, enabled=False):
             sens = self.sensor(crop.float())  # embedding, presence logits, strength: all fp32
             coef = self.dct(rgb_to_ycbcr(img.float()))
-            w = self.gate(log_energy(coef), sens["embedding"])
+            energy, emb = self.cond_inputs(coef, sens)
+            w = self.gate(energy, emb)
             y = ycbcr_to_rgb(self.dct.inverse(coef * w[:, :, None, None])).clamp(0, 1)
         return sens, w, y
+
+    def cond_inputs(self, coef: Tensor, sens: dict[str, Tensor]) -> tuple[Tensor, Tensor]:
+        """Conditioning inputs ``(DCT statistics (B,192), embedding (B,128))``: per image (LUMEN2) or the learned constant (uncond)."""
+        if self.conditioning == "sensor":
+            return log_energy(coef), sens["embedding"]
+        b = coef.shape[0]
+        c = self.const.float()
+        return c[:N_COEF].expand(b, -1), c[N_COEF:].expand(b, -1)
 
     def forward_train(self, x: Tensor) -> tuple[Tensor, Tensor, dict[str, Tensor], Tensor]:
         """Packed ``x (B,3,480,256)`` in [0,1] -> ``(logits (B,2), L2 embedding z (B,1024), sensor outputs, gate weights w (B,3,8,8))``.
@@ -189,7 +215,7 @@ class Lumen2Model(nn.Module):
         Call under the outer autocast (CLIP in bf16/fp16); the LUMEN parts disable autocast themselves."""
         sens, w, y = self.front(x)
         with torch.autocast(device_type=x.device.type, enabled=False):
-            self._condition(sens["embedding"])
+            self._condition(sens["embedding"] if self.conditioning == "sensor" else self.const.float()[N_COEF:].expand(x.shape[0], -1))
         try:
             logits, z = self.base.features(y)
         finally:
@@ -206,9 +232,9 @@ class Lumen2Model(nn.Module):
         return logits[:, 1] - logits[:, 0], sens, w
 
 
-def build_lumen2(device: str = "cpu", base: GendCLIP | None = None) -> Lumen2Model:
-    """Public GenD weights + fresh LUMEN parts (identity at init)."""
-    return Lumen2Model(base if base is not None else load_gend("cpu")).to(device)
+def build_lumen2(device: str = "cpu", base: GendCLIP | None = None, conditioning: str = "sensor") -> Lumen2Model:
+    """Public GenD weights + fresh LUMEN parts (identity at init). ``conditioning="constant"`` = LUMEN-uncond."""
+    return Lumen2Model(base if base is not None else load_gend("cpu"), conditioning=conditioning).to(device)
 
 
 # ------------------------------------------------------------------------------------------------ checkpoints

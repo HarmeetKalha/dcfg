@@ -98,10 +98,11 @@ def quick_eval(model: Lumen2Model, source: Any, cond: EvalCondition, split: str 
 
 def load_lumen2(trainable: str | Path | None, device: str = "cuda") -> tuple[Lumen2Model, dict[str, Any]]:
     """Public GenD + LUMEN parts; load a trainable-only checkpoint onto it (None = step-0 model). Returns (model.eval(), ckpt meta)."""
-    model = build_lumen2("cpu")
+    ck = torch.load(trainable, map_location="cpu", weights_only=False) if trainable else None
+    # LUMEN-uncond checkpoints carry the learned constant conditioning vector "const"
+    model = build_lumen2("cpu", conditioning="constant" if ck is not None and "const" in ck["trainable"] else "sensor")
     meta: dict[str, Any] = {}
-    if trainable:
-        ck = torch.load(trainable, map_location="cpu", weights_only=False)
+    if ck is not None:
         load_trainable(model, ck["trainable"])
         meta = {k: v for k, v in ck.items() if k != "trainable"}
     return model.to(device).eval(), meta
@@ -138,7 +139,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     model, meta = load_lumen2(a.trainable, "cuda")
     tap = SensorTap(model)
     extra = provenance("gend", True) | {
-        "model": "lumen2", "trainable_file": str(a.trainable), "trainable_sha256": sha256_file(Path(a.trainable)),
+        "model": "lumen2" if model.conditioning == "sensor" else "lumen2_uncond", "conditioning": model.conditioning, "trainable_file": str(a.trainable), "trainable_sha256": sha256_file(Path(a.trainable)),
         "trained_epoch_1based": meta.get("epoch_1based"), "train_val_mean_auc": meta.get("val_mean_auc"),
         "init_is_public_gend": True, "part_params": model.part_param_counts(),
         "input": "packed views: damaged 256 crop (sensor) + GenD 224 resize (gate, CLIP)"}

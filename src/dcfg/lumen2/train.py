@@ -77,7 +77,8 @@ class Lumen2Trainer(GendAugTrainer):
                  expected_gend_trainable: int | None = GENDTRAIN_PARAMS, now_fn: Any = None) -> None:
         self.expected_gend_trainable = expected_gend_trainable
         self.now_fn = now_fn or (lambda: datetime.now(timezone.utc))
-        super().__init__(cfg, run_dir, model_fn or (lambda: build_lumen2("cpu")), source, expected_trainable=None)
+        cond = str(cfg.get("conditioning", "sensor"))  # "constant" = LUMEN-uncond control
+        super().__init__(cfg, run_dir, model_fn or (lambda: build_lumen2("cpu", conditioning=cond)), source, expected_trainable=None)
         self.deadline = datetime.fromisoformat(str(cfg.get("monday_deadline_utc", MONDAY_DEADLINE_UTC.isoformat())))
         self.part_counts = self.model.part_param_counts()
 
@@ -207,7 +208,7 @@ class Lumen2Trainer(GendAugTrainer):
 
     def _finalize(self) -> dict[str, Any]:
         res = super()._finalize()
-        res |= {"model": "lumen2", "part_params": self.part_counts, "w_damage": float(self.cfg.get("w_damage", W_DAMAGE)),
+        res |= {"model": "lumen2" if self.model.conditioning == "sensor" else "lumen2_uncond", "conditioning": self.model.conditioning, "part_params": self.part_counts, "w_damage": float(self.cfg.get("w_damage", W_DAMAGE)),
                 "w_gate_penalty": float(self.cfg.get("w_gate_penalty", GATE_PENALTY))}
         (self.run_dir / "done.json").write_text(json.dumps(res, indent=2))
         return res

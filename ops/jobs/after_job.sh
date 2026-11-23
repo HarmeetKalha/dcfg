@@ -22,7 +22,7 @@ case "$JOB" in
   gate_ablation) PATHS=(results/gate) ;;
   *) PATHS=(results) ;;
 esac
-git add -- results/STATUS_FOR_MEETING.md "${PATHS[@]}" src configs tests ops/jobs ops/queue_meeting.txt docs "$@" 2>/dev/null
+git add -- results/STATUS_FOR_MEETING.md "${PATHS[@]}" src configs tests ops/jobs ops/queue_meeting.txt ops/queue_uncond.txt docs "$@" 2>/dev/null
 if ! git diff --cached --quiet; then
   git commit -q -m "after $JOB: $SUMMARY
 

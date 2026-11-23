@@ -1,0 +1,9 @@
+# LUMEN-uncond control (docs/DECISIONS.md 2026-11-23). GPU runner: DCFG_QUEUE_FILE=ops/queue_uncond.txt (runs root runs/).
+lumen2u_smoke | third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.smoke --config configs/train/lumen2_uncond.yaml --md results/lumen2/uncond_smoke.md --name LUMEN-uncond #noheartbeat
+after_lumen2u_smoke | ops/jobs/after_job.sh lumen2u_smoke #noheartbeat
+lumen2_uncond_train | test -f runs/lumen2u_smoke/PASS && DCFG_SUP_NAME=LUMEN-uncond ops/jobs/retry_supervised.sh 10 third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.train --config configs/train/lumen2_uncond.yaml #noheartbeat
+after_lumen2_uncond_train | ops/jobs/after_job.sh lumen2_uncond_train #noheartbeat
+uncond_eval | test -f runs/lumen2_uncond_train/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.evaluate_lumen2 --run lumen2_uncond --trainable runs/lumen2_uncond_train/best_trainable.pt --conditions all --out-dir results/lumen2/lumen2_uncond #noheartbeat
+after_uncond_eval | ops/jobs/after_job.sh uncond_eval #noheartbeat
+dfd_lumen2_uncond | test -f runs/lumen2_uncond_train/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.evaluate_lumen2 --run lumen2_uncond --trainable runs/lumen2_uncond_train/best_trainable.pt --conditions clean,mixed_heavy --out-dir results/dfd --crops-root /home/harmeet/data/gend_crops_dfd --json /home/harmeet/data/gend_crops_dfd/DFD.json #noheartbeat
+after_dfd_lumen2_uncond | ops/jobs/after_job.sh dfd_lumen2_uncond #noheartbeat

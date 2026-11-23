@@ -43,7 +43,7 @@ while :; do
         r=$(tail -c +"$((off+1))" "$LOG" 2>/dev/null | grep -a -m1 -oE 'resumed (at|from) step [0-9]+' | grep -oE '[0-9]+$')
         [ -n "$r" ] && break; sleep 10; done
       say "restart #$restarts resumed from step ${r:-unknown}"
-      notify "LUMEN2 crashed (exit $rc, GPU ${tC}C, driver-reset events ${ev:-?}) -> restart #$restarts/$MAX, resumed from step ${r:-unknown}" ) &
+      notify "${DCFG_SUP_NAME:-LUMEN2} crashed (exit $rc, GPU ${tC}C, driver-reset events ${ev:-?}) -> restart #$restarts/$MAX, resumed from step ${r:-unknown}" ) &
   fi
   wait "$CPID"; rc=$?
   [ "$rc" = 0 ] && { say "command finished OK"; exit 0; }
@@ -54,13 +54,13 @@ while :; do
   if [ "$noprog" -ge 2 ]; then
     save_state; echo "$(date -Is) no progress beyond step $prev_max in 2 consecutive crashes" > "$RD/SUPERVISOR_GAVEUP"
     say "GAVE UP: 2 consecutive crashes without new training steps (max step $prev_max)"
-    notify "LUMEN2 STOPPED: crashed twice without progress past step $prev_max (exit $rc) - likely a real bug, needs a look"
+    notify "${DCFG_SUP_NAME:-LUMEN2} STOPPED: crashed twice without progress past step $prev_max (exit $rc) - likely a real bug, needs a look"
     exit 3
   fi
   if [ "$restarts" -ge "$MAX" ]; then
     save_state; echo "$(date -Is) restart limit $MAX reached" > "$RD/SUPERVISOR_GAVEUP"
     say "GAVE UP: restart limit $MAX reached"
-    notify "LUMEN2 STOPPED: $MAX restarts used up (last exit $rc at step $cur)"
+    notify "${DCFG_SUP_NAME:-LUMEN2} STOPPED: $MAX restarts used up (last exit $rc at step $cur)"
     exit 3
   fi
   restarts=$((restarts+1)); save_state
