@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Mon 23 Nov 11:29 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Mon 23 Nov 11:33 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: d3016b4 after lumen2_bench: LUMEN2 inference x1.11 vs GenD-aug, 1741424 LUMEN params
+Last commit: f81ef8e after lumen2_report: LUMEN2-GenD-aug: synth mean +0.0105 [+0.0049,+0.0158], c40 -0.0053 [-0.
 
 ## Queue and ETA
 
@@ -18,18 +18,18 @@ Last commit: d3016b4 after lumen2_bench: LUMEN2 inference x1.11 vs GenD-aug, 174
 - `lumen2_eval`: done
 - `lumen2_bench`: done
 - `lumen2_report`: done
-- `gate_heatmaps_lumen2_collect`: pending, ETA Mon 23 Nov 12:29 IST
-- `gate_heatmaps_lumen2`: pending, ETA Mon 23 Nov 12:54 IST
+- `gate_heatmaps_lumen2_collect`: done
+- `gate_heatmaps_lumen2`: done
 - `dfd_gend_public`: done
-- `dfd_gend_aug`: pending, ETA Mon 23 Nov 13:54 IST
-- `dfd_lumen2`: pending, ETA Mon 23 Nov 14:54 IST
-- `dfd_base_xception`: pending, ETA Mon 23 Nov 15:54 IST
-- `dfd_augft_xception`: pending, ETA Mon 23 Nov 16:54 IST
-- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 17:54 IST
-- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 18:54 IST
-- `dfd_lumen_nogate_xception`: pending, ETA Mon 23 Nov 19:54 IST
-- `dfd_reports`: pending, ETA Mon 23 Nov 20:54 IST
-- `lumen2_final`: pending, ETA Mon 23 Nov 21:54 IST
+- `dfd_gend_aug`: pending, ETA Mon 23 Nov 12:33 IST
+- `dfd_lumen2`: pending, ETA Mon 23 Nov 13:33 IST
+- `dfd_base_xception`: pending, ETA Mon 23 Nov 14:33 IST
+- `dfd_augft_xception`: pending, ETA Mon 23 Nov 15:33 IST
+- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 16:33 IST
+- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 17:33 IST
+- `dfd_lumen_nogate_xception`: pending, ETA Mon 23 Nov 18:33 IST
+- `dfd_reports`: pending, ETA Mon 23 Nov 19:33 IST
+- `lumen2_final`: pending, ETA Mon 23 Nov 20:33 IST
 
 ### Runner: background (DFD) (alive: NO - restart it if jobs are pending)
 - `bg_dl_dfd_original`: done
@@ -37,7 +37,7 @@ Last commit: d3016b4 after lumen2_bench: LUMEN2 inference x1.11 vs GenD-aug, 174
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 21:54 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 20:33 IST
 
 ## Finished results
 
