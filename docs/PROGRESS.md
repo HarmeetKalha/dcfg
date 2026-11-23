@@ -1,5 +1,8 @@
 # PROGRESS
 
+**MEETING PLAN COMPLETE (Mon 23 Nov 13:35 IST).** All steps 0-6 done; queue_meeting empty, runner exited, GPU free. LUMEN2 training: patience stop after epoch 12, best epoch 6 (val 0.9305); one CUDA 'unknown error' crash at 09:16 IST auto-restarted by retry_supervised.sh (restart 1/10, resumed step 16800; GPU 64C, 0 driver-reset events). PC was powered off 00:48-06:49 IST (WSL not running), resumed from step 15200. Result (results/lumen2/lumen2_pilot.md): LUMEN2-GenD-aug synth mean +0.0105 [+0.0049,+0.0158] win; heavy +0.0179 win; video synth +0.0088 win; c40 -0.0053 tie; held-out -0.0059 tie; ECE +0.0052 loss; clean c23 ok; DFD clean +0.018 ok (0.892 vs 0.874); DFD mixed_heavy -0.0068 tie. Pre-declared rule PASSES; LUMEN-uncond control NOT run (not authorised; next step if professor agrees). CNN queue still paused; Task Scheduler tasks still disabled.
+
+
 **LUMEN2 build (2026-11-21 IST, PAUSED by coordinator for gaming; no GPU use until "resume").** Code in src/dcfg/lumen2/ (model, train, smoke, evaluate_lumen2, report, pilot_report, bench, analysis, dfd_append), src/dcfg/analysis/gate_heatmaps_lumen2.py, configs/train/lumen2.yaml, tests/test_lumen2.py + test_lumen2_reports.py. Queued (appended to ops/queue_meeting.txt, runner must be RESTARTED after the pause): smoke, train, eval, bench, report, heatmaps, DFD evals, dfd_reports, lumen2_final. Verified on GPU already: step-0 == GenD (1.7e-5 logit diff), real-data trainer for 3 steps incl. val, evaluate_lumen2 on 2 conditions. NOT yet verified on GPU: full-batch (32) memory/speed, smoke checks, heatmap collect, bench, Xception DFD plumbing (needs DFD crops).
 
 
