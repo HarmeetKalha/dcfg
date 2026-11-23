@@ -1,0 +1,41 @@
+{
+  "run_id": "base_xception",
+  "detector": "xception",
+  "condition": "mixed_heavy",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 104014,
+  "n_videos": 3429,
+  "frame_auc": 0.5276757469790334,
+  "frame_auc_ci": [
+    0.5117439437692618,
+    0.5456074583006796
+  ],
+  "video_auc": 0.5693961497199356,
+  "video_auc_ci": [
+    0.5413101852306521,
+    0.6013117504706128
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": false,
+  "git_commit": "059cda7edbbe65445c7a37af59455dc0cae34d7a",
+  "dfb_commit": "f188b1c105465e2e5377eb536a95022ae0e4522d",
+  "timestamp": "2026-11-23T07:13:28.652424+00:00",
+  "scores_file": "scores/base_xception__mixed_heavy.npz",
+  "checkpoints": {
+    "detector_weights_path": "/home/harmeet/data/weights/dfb/xception_best.pth",
+    "detector_weights_sha256": "dd61186f9ac8e99aae85982cae338b555dfaeef042f6b699e5a55cae3998ba47"
+  },
+  "train": null,
+  "early_stop_epoch": null,
+  "best_epoch": null,
+  "train_wall_time_s": null,
+  "trainable_mb": null,
+  "detector_mb": null,
+  "params": null
+}
