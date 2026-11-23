@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Mon 23 Nov 13:35 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Mon 23 Nov 14:34 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: ef531b2 after dfd_reports: DFD reports done
+Last commit: c41dc57 LUMEN-uncond control: definition in DECISIONS.md (before training), constant-conditioning mo
 
 ## Queue and ETA
 
@@ -29,7 +29,7 @@ Last commit: ef531b2 after dfd_reports: DFD reports done
 - `dfd_fixed_xception`: done
 - `dfd_lumen_nogate_xception`: done
 - `dfd_reports`: done
-- `lumen2_final`: RUNNING: running; ETA Mon 23 Nov 14:05 IST
+- `lumen2_final`: done
 
 ### Runner: background (DFD) (alive: NO - restart it if jobs are pending)
 - `bg_dl_dfd_original`: done
@@ -37,7 +37,7 @@ Last commit: ef531b2 after dfd_reports: DFD reports done
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 14:05 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 14:34 IST
 
 ## Finished results
 
