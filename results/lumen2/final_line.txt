@@ -1,0 +1,1 @@
+LUMEN2-GenD-aug: synth mean +0.0105 [+0.0049,+0.0158], c40 -0.0053 [-0.0159,+0.0045]; verdict rule PASSES (LUMEN-uncond pending); DFD AUC GenD-aug 0.874, LUMEN2 0.892
