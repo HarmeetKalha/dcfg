@@ -1,0 +1,48 @@
+{
+  "batch_size": 64,
+  "gpu": "NVIDIA GeForce RTX 3060",
+  "precision": "CLIP fp16 autocast, LUMEN parts fp32",
+  "gend_aug": {
+    "median_ms_per_image": 10.570618867205894,
+    "min_ms_per_image": 10.518525187478645,
+    "iters": 30
+  },
+  "lumen2": {
+    "median_ms_per_image": 11.709502304682928,
+    "min_ms_per_image": 11.643109921863015,
+    "iters": 30
+  },
+  "overhead_ratio": 1.1077404692936461,
+  "lumen_params": {
+    "gend_trainable (LayerNorms + head, = GenD-aug)": 104450,
+    "sensor": 772264,
+    "gate (MLP + 2 LN)": 132160,
+    "ln_generator (MLP + U,V)": 837000,
+    "LUMEN parts total": 1741424
+  },
+  "lumen_params_total": 1741424,
+  "trainable_file_mb": {
+    "gend_aug": 0.432,
+    "lumen2": 7.105
+  },
+  "training": {
+    "lumen2": {
+      "train_wall_time_s": 62529.91643667221,
+      "train_s": 58217.70237016678,
+      "val_s": 4312.214066505432,
+      "best_epoch": 6,
+      "stop_epoch": 12,
+      "stop_reason": "patience",
+      "steps": 17220
+    },
+    "gend_aug": {
+      "train_wall_time_s": 82141.11356282234,
+      "train_s": 76285.1540441513,
+      "val_s": 5855.959518671036,
+      "best_epoch": 17,
+      "stop_epoch": 18,
+      "stop_reason": "epoch_cap",
+      "steps": 25830
+    }
+  }
+}
