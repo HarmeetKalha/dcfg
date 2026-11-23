@@ -16,9 +16,9 @@ All numbers: frame AUC unless stated, FF++ c23 test + c40, GenD crops, degradati
 | Heavy-damage mean AUC (jpeg_q10, blur_s4, noise_s20, resize_0.25, mixed_heavy) | secondary | 0.8775 [0.8604, 0.8961] | 0.8954 [0.8785, 0.9126] | +0.0179 [+0.0104, +0.0255] | win |
 | Video AUC, synthetic mean (17) | secondary | 0.9438 [0.9306, 0.9577] | 0.9526 [0.9393, 0.9646] | +0.0088 [+0.0037, +0.0141] | win |
 | Video AUC, c40 | secondary | 0.9084 [0.8834, 0.9316] | 0.9123 [0.8885, 0.9343] | +0.0039 [-0.0072, +0.0152] | tie |
-| DFD under damage (frame AUC, mixed_heavy) | secondary | n/a | n/a | n/a | pending (DFD not evaluated yet) |
+| DFD under damage (frame AUC, mixed_heavy) | secondary | 0.6719 [0.6535, 0.6914] | 0.6651 [0.6449, 0.6858] | -0.0068 [-0.0175, +0.0031] | tie |
 | Clean c23 AUC | safety | 0.9730 [0.9646, 0.9807] | 0.9759 [0.9674, 0.9831] | +0.0029 [-0.0008, +0.0063] | ok |
-| Clean DFD AUC | safety | n/a | n/a | n/a | pending (DFD not evaluated yet) |
+| Clean DFD AUC | safety | 0.8741 [0.8620, 0.8858] | 0.8921 [0.8803, 0.9028] | +0.0180 [+0.0129, +0.0231] | ok |
 
 Selective-AUC rule (win if either coverage wins): **tie**. ECE is computed over 492488 frames (22 degraded conditions concatenated: 17 synthetic + 4 held-out + c40).
 
@@ -26,8 +26,8 @@ Selective-AUC rule (win if either coverage wins): **tie**. ECE is computed over 
 
 - Primary (synthetic-degraded mean): **win**
 - Secondary wins: synth_mean, heavy_mean, video_synth_mean
-- Safety: clean c23 ok, clean DFD pending
-- Rule status: undecided, pending dfd_mixed_heavy, dfd_clean
+- Safety: clean c23 ok, clean DFD ok
+- "Worth publishing" rule (wins primary or >= 1 secondary, passes both safety checks): **PASSES** - still requires beating LUMEN-uncond on the won metric (not run).
 
 ## Exploratory (never used as a claim)
 
@@ -58,6 +58,17 @@ Per-condition frame AUC, paired difference LUMEN2 - GenD-aug [95% CI], video-AUC
 | motion_k7 | 0.9448 | 0.9441 | -0.0007 [-0.0078, +0.0070] | +0.0014 [-0.0049, +0.0078] | 0.9854 / 0.9853 | 0.1169 / 0.1192 |
 | motion_k11 | 0.9185 | 0.9226 | +0.0041 [-0.0062, +0.0134] | +0.0079 [-0.0014, +0.0168] | 0.9779 / 0.9791 | 0.1522 / 0.1474 |
 | c40 | 0.8570 | 0.8517 | -0.0053 [-0.0159, +0.0045] | +0.0039 [-0.0072, +0.0152] | 0.9566 / 0.9553 | 0.2184 / 0.2245 |
+
+## DFD (DeepFakeDetection, never used in training)
+
+|  | GenD-aug | LUMEN2 | difference |
+|---|---|---|---|
+| frame AUC, clean | 0.8741 [0.8620, 0.8858] | 0.8921 [0.8803, 0.9028] | +0.0180 [+0.0129, +0.0231] |
+| frame AUC, mixed_heavy | 0.6719 [0.6535, 0.6914] | 0.6651 [0.6449, 0.6858] | -0.0068 [-0.0175, +0.0031] |
+| video AUC, clean | 0.9175 [0.9050, 0.9302] | 0.9369 [0.9256, 0.9479] | +0.0194 [+0.0137, +0.0252] |
+| video AUC, mixed_heavy | 0.7188 [0.6942, 0.7433] | 0.7093 [0.6850, 0.7351] | -0.0094 [-0.0228, +0.0036] |
+
+3431 videos; mixed_heavy uses the same seeding rule as the FF++ conditions.
 
 ## Damage sensor inside LUMEN2
 
@@ -111,3 +122,15 @@ Unseen conditions (no ground truth: real compression c40, WebP, motion blur): fr
 - training: stop reason **patience**, best epoch 6, stop epoch 12 (1-based; cap 18, patience 6); best val mean AUC 0.9305; train 16.17 h + val 1.20 h = 17.37 h; 17220 optimiser steps
 - val curve: 1: 0.9076, 2: 0.9190, 3: 0.9232, 4: 0.9244, 5: 0.9276, 6: 0.9305, 7: 0.9269, 8: 0.9256, 9: 0.9261, 10: 0.9274, 11: 0.9239, 12: 0.9249
 - parameters per part: gend_trainable (LayerNorms + head, = GenD-aug): 104,450, sensor: 772,264, gate (MLP + 2 LN): 132,160, ln_generator (MLP + U,V): 837,000, LUMEN parts total: 1,741,424
+
+<!-- DFD begin -->
+## DFD (DeepFakeDetection, FF++ release; never used in training)
+
+All DFD videos (real actors + DFD fakes), 32 frames per video, video-level bootstrap 95% CI (1000 resamples). `mixed_heavy` uses the same degradation and seeding rule as on FF++ (per-frame key). GenD models use GenD RetinaFace crops; Xception models use DeepfakeBench crops.
+
+| model | frame AUC clean | video AUC clean | frame AUC mixed_heavy | video AUC mixed_heavy |
+|---|---|---|---|---|
+| GenD | 0.8924 [0.8831, 0.9016] | 0.9349 [0.9252, 0.9438] | 0.6557 [0.6349, 0.6753] | 0.6938 [0.6672, 0.7185] |
+| GenD-aug | 0.8741 [0.8630, 0.8847] | 0.9175 [0.9059, 0.9287] | 0.6719 [0.6521, 0.6904] | 0.7188 [0.6937, 0.7426] |
+| LUMEN2 | 0.8921 [0.8819, 0.9019] | 0.9369 [0.9263, 0.9462] | 0.6651 [0.6459, 0.6839] | 0.7093 [0.6851, 0.7337] |
+<!-- DFD end -->

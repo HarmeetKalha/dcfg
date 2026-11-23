@@ -60,3 +60,17 @@ All non-clean conditions concatenated (21 synthetic + c40 = 22 conditions, 49248
 - wall time: train 21.19 h (0.88 d), val 1.63 h (0.07 d), total 22.82 h (0.95 d) (excludes crop preparation); 25830 optimiser steps (1435/epoch, effective batch 128), non-finite skipped steps: 0
 - trainable parameters: 104,450; trainable-only file 0.432 MB vs full model file 1156.7 MB (fp32)
 - val curve (mean frame AUC over the val conditions): 1: 0.8937, 2: 0.9023, 3: 0.9080, 4: 0.9121, 5: 0.9146, 6: 0.9164, 7: 0.9168, 8: 0.9175, 9: 0.9181, 10: 0.9188, 11: 0.9187, 12: 0.9197, 13: 0.9197, 14: 0.9199, 15: 0.9197, 16: 0.9199, 17: 0.9199, 18: 0.9198
+
+<!-- DFD begin -->
+## DFD (DeepFakeDetection, FF++ release; never used in training)
+
+All DFD videos (real actors + DFD fakes), 32 frames per video, video-level bootstrap 95% CI (1000 resamples). `mixed_heavy` uses the same degradation and seeding rule as on FF++ (per-frame key). GenD models use GenD RetinaFace crops; Xception models use DeepfakeBench crops.
+
+| model | frame AUC clean | video AUC clean | frame AUC mixed_heavy | video AUC mixed_heavy |
+|---|---|---|---|---|
+| GenD | 0.8924 [0.8831, 0.9016] | 0.9349 [0.9252, 0.9438] | 0.6557 [0.6349, 0.6753] | 0.6938 [0.6672, 0.7185] |
+| GenD-aug | 0.8741 [0.8630, 0.8847] | 0.9175 [0.9059, 0.9287] | 0.6719 [0.6521, 0.6904] | 0.7188 [0.6937, 0.7426] |
+| base_xception | 0.8471 [0.8340, 0.8605] | 0.8964 [0.8808, 0.9113] | 0.5277 [0.5117, 0.5456] | 0.5694 [0.5413, 0.6013] |
+| augft_xception | 0.7733 [0.7552, 0.7918] | 0.8194 [0.7976, 0.8402] | 0.5490 [0.5266, 0.5725] | 0.5652 [0.5337, 0.5951] |
+| lumen_xception | 0.8111 [0.7950, 0.8262] | 0.8581 [0.8382, 0.8761] | 0.5536 [0.5312, 0.5747] | 0.5696 [0.5367, 0.5996] |
+<!-- DFD end -->
