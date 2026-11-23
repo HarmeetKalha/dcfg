@@ -19,11 +19,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 IST = timezone(timedelta(hours=5, minutes=30))
 #: (runner label, runs root, queue file)
-RUNNERS = [("meeting", REPO / "runs", REPO / "ops/queue_meeting.txt"), ("background (DFD)", REPO / "runs_bg", REPO / "ops/queue_dfd_bg.txt")]
+RUNNERS = [("LUMEN-uncond", REPO / "runs", REPO / "ops/queue_uncond.txt"), ("meeting", REPO / "runs", REPO / "ops/queue_meeting.txt"), ("background (DFD)", REPO / "runs_bg", REPO / "ops/queue_dfd_bg.txt")]
 #: planning estimate in minutes for jobs that have not started (training ones are refined from measurements)
 PLAN_MIN = {"gate_heatmaps_lumen1": 20, "sensor_train": 95, "sensor_eval": 25, "lumen_nogate_xception": 11 * 60, "eval_lumen_nogate_xception": 35,
             "gate_ablation": 5, "lumen2_smoke": 45, "lumen2_train": 27 * 60, "lumen2_eval": 120, "lumen2_bench": 5,
-            "lumen2_report": 30, "gate_heatmaps_lumen2": 25}
+            "lumen2_report": 30, "gate_heatmaps_lumen2": 25,
+            "lumen2u_smoke": 25, "lumen2_uncond_train": 18 * 60, "uncond_eval": 100, "dfd_lumen2_uncond": 45, "uncond_report": 10}
+UNCOND_EPOCH_MIN = 5441 / 60  # smoke measurement: 5,060 s train + 381 s val per epoch
 NOGATE_EPOCH_MIN, NOGATE_MAX_EPOCHS = 22.5, 30  # from lumen_xception: 33,393 s / 25 epochs = 22.3 min
 
 
@@ -100,6 +102,22 @@ def job_progress(runs: Path, jid: str) -> tuple[str, float | None]:
             rem = NOGATE_MAX_EPOCHS * NOGATE_EPOCH_MIN
         if hb and hb.get("eta"):
             desc += f"; heartbeat eta {hb['eta']}"
+    elif jid == "lumen2_uncond_train":
+        rows = metrics_rows(d / "metrics.csv")
+        ref = {r["epoch"]: r["val_mean_auc"] for r in metrics_rows(REPO / "runs/lumen2_train/metrics.csv")}
+        if rows:
+            best = max(rows, key=lambda x: float(x["val_mean_auc"]))
+            last = rows[-1]
+            bad = int(last.get("bad_epochs") or 0)
+            desc = (f"epoch {len(rows) + 1} in progress ({len(rows)} of max 18 done; step {hb.get('step') if hb else '?'}), last val mean AUC "
+                    f"{last['val_mean_auc']} (LUMEN2 at epoch {last['epoch']}: {ref.get(last['epoch'], '-')}), best epoch {best['epoch']} "
+                    f"({best['val_mean_auc']}), patience counter {bad}/6")
+            frac = ((hb or {}).get("step", 0) % 1435) / 1435
+            rem = min(18 - len(rows), 6 - bad) * UNCOND_EPOCH_MIN - frac * UNCOND_EPOCH_MIN  # earliest stop if no new best
+            desc += f"; earliest stop (patience, if no new best) ~{ist(time.time() + rem * 60)}, latest (18-epoch cap) ~{ist(time.time() + ((18 - len(rows)) - frac) * UNCOND_EPOCH_MIN * 60)}"
+        else:
+            desc = f"epoch 1 in progress (step {hb.get('step') if hb else '?'})"
+            rem = 12 * UNCOND_EPOCH_MIN
     elif hb:
         desc = "running (" + ", ".join(f"{k}={hb[k]}" for k in ("condition", "epoch", "step") if k in hb) + ")"
     return desc, rem
@@ -137,7 +155,7 @@ def queue_section() -> tuple[list[str], float | None]:
             if jid.startswith("after_"):
                 continue
             L.append(f"- `{jid}`: {st}")
-        if label == "meeting":
+        if label == "LUMEN-uncond":
             final_eta = t
         L.append("")
     return L, final_eta
@@ -197,6 +215,12 @@ def results_section() -> list[str]:
             L += block("Xception frame AUC, point estimates", ["| run | clean | synthetic mean | held-out | c40 | heavy (5) |", "|---|---|---|---|---|---|"] + rows)
     except Exception as e:  # noqa: BLE001
         L += [f"(aggregate table failed: {e})", ""]
+    # LUMEN-uncond control
+    for f, t in (("results/lumen2/uncond.md", None), ("results/lumen2/uncond_0730.md", None)):
+        if (REPO / f).exists():
+            L += [*(read(REPO / f) or "").splitlines()[:40], ""] if f.endswith("0730.md") else block("LUMEN-uncond control (final)", head(REPO / f, 20))
+    if (REPO / "results/lumen2/uncond_smoke.md").exists():
+        L += block("LUMEN-uncond smoke test", head(REPO / "results/lumen2/uncond_smoke.md", 12))
     # GenD family
     L += block("LUMEN2 track: GenD (public) / GenD-aug", head(REPO / "results/lumen2/gend_aug.md", 8))
     lum2 = sorted(p for p in (REPO / "results/lumen2").glob("lumen2*.md") if "smoke" not in p.name)
@@ -237,7 +261,7 @@ def main() -> int:
     q, final = queue_section()
     L += ["## Queue and ETA", ""] + q
     if final:
-        L += [f"Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): {ist(final)}", ""]
+        L += [f"LUMEN-uncond queue estimated finish (assuming the earliest patience stop): {ist(final)}", ""]
     L += ["## Finished results", ""] + results_section()
     out = REPO / "results" / "STATUS_FOR_MEETING.md"
     out.parent.mkdir(exist_ok=True)

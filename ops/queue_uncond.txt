@@ -7,3 +7,4 @@ uncond_eval | test -f runs/lumen2_uncond_train/DONE && third_party/GenD/.venv/bi
 after_uncond_eval | ops/jobs/after_job.sh uncond_eval #noheartbeat
 dfd_lumen2_uncond | test -f runs/lumen2_uncond_train/DONE && third_party/GenD/.venv/bin/python -I -m dcfg.lumen2.evaluate_lumen2 --run lumen2_uncond --trainable runs/lumen2_uncond_train/best_trainable.pt --conditions clean,mixed_heavy --out-dir results/dfd --crops-root /home/harmeet/data/gend_crops_dfd --json /home/harmeet/data/gend_crops_dfd/DFD.json #noheartbeat
 after_dfd_lumen2_uncond | ops/jobs/after_job.sh dfd_lumen2_uncond #noheartbeat
+uncond_report | test -f runs/uncond_eval/DONE && test -f runs/dfd_lumen2_uncond/DONE && .venv/bin/python -m dcfg.lumen2.uncond_report && ops/jobs/after_job.sh uncond_report "$(cat results/lumen2/uncond_line.txt)" #noheartbeat

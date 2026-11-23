@@ -1,10 +1,17 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Mon 23 Nov 14:34 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Mon 23 Nov 15:35 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: c41dc57 LUMEN-uncond control: definition in DECISIONS.md (before training), constant-conditioning mo
+Last commit: 16ecb02 after lumen2u_smoke: lumen2u_smoke done
 
 ## Queue and ETA
+
+### Runner: LUMEN-uncond (alive: yes)
+- `lumen2u_smoke`: done
+- `lumen2_uncond_train`: RUNNING: epoch 1 in progress (step 1041); ETA Tue 24 Nov 09:43 IST
+- `uncond_eval`: pending, ETA Tue 24 Nov 11:53 IST
+- `dfd_lumen2_uncond`: pending, ETA Tue 24 Nov 13:08 IST
+- `uncond_report`: pending, ETA Tue 24 Nov 13:48 IST
 
 ### Runner: meeting (alive: yes)
 - `gate_heatmaps_lumen1`: done
@@ -37,7 +44,7 @@ Last commit: c41dc57 LUMEN-uncond control: definition in DECISIONS.md (before tr
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 14:34 IST
+LUMEN-uncond queue estimated finish (assuming the earliest patience stop): Tue 24 Nov 13:48 IST
 
 ## Finished results
 
@@ -85,6 +92,20 @@ Full table + paired differences: `results/gate/ablation_xception.md`.
 | lumen_nogate_xception | 0.975 | 0.889 | 0.885 | 0.833 | 0.814 |
 | lumen_xception | 0.974 | 0.899 | 0.887 | 0.826 | 0.830 |
 | augft_xception | 0.974 | 0.929 | 0.917 | 0.872 | 0.882 |
+
+### LUMEN-uncond smoke test
+# LUMEN2 smoke test
+Verdict: **PASS**
+| check | result |
+|---|---|
+| step-0 LUMEN2 == GenD | max |logit diff| 6.03e-04, max |embedding diff| 1.15e-04, w all 1: True -> ok |
+| damaged-image stream == GenD-aug | 224 view and 256 view hashes equal in 2 slices; 25830 record-order hashes vs runs/gendaug_train/batches.log, 0 mismatches -> ok |
+| 300 optimiser steps (1200 micro-steps) | main loss -1.3391 -> -1.4349, sensor loss 0.7629 -> 0.5125 (first -> last quarter), NaN steps 0, U/V abs sums 533/552 -> ok |
+| resume | resumed True, batch hashes equal True, max |param diff| 4.93e-04, BN buffers (max relative diff) 4.08e-03 -> ok |
+| time | 36.3 img/s -> epoch train 84.3 min + val 6.3 min; 18 epochs = **27.2 h** (limit 30 h); peak GPU 8486 MB |
+## Parameters per part
+| part | params |
+|---|---|
 
 ### LUMEN2 track: GenD (public) / GenD-aug
 # GenD-aug (LUMEN2 baseline): GenD fine-tuned with its own recipe on our degraded stream
