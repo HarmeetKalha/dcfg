@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Mon 23 Nov 11:25 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Mon 23 Nov 11:29 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: a6b7c9c after lumen2_eval: LUMEN2 eval done: 23/23 conditions
+Last commit: d3016b4 after lumen2_bench: LUMEN2 inference x1.11 vs GenD-aug, 1741424 LUMEN params
 
 ## Queue and ETA
 
@@ -17,19 +17,19 @@ Last commit: a6b7c9c after lumen2_eval: LUMEN2 eval done: 23/23 conditions
 - `lumen2_train`: done
 - `lumen2_eval`: done
 - `lumen2_bench`: done
-- `lumen2_report`: pending, ETA Mon 23 Nov 12:25 IST
-- `gate_heatmaps_lumen2_collect`: pending, ETA Mon 23 Nov 13:25 IST
-- `gate_heatmaps_lumen2`: pending, ETA Mon 23 Nov 13:50 IST
+- `lumen2_report`: done
+- `gate_heatmaps_lumen2_collect`: pending, ETA Mon 23 Nov 12:29 IST
+- `gate_heatmaps_lumen2`: pending, ETA Mon 23 Nov 12:54 IST
 - `dfd_gend_public`: done
-- `dfd_gend_aug`: pending, ETA Mon 23 Nov 14:50 IST
-- `dfd_lumen2`: pending, ETA Mon 23 Nov 15:50 IST
-- `dfd_base_xception`: pending, ETA Mon 23 Nov 16:50 IST
-- `dfd_augft_xception`: pending, ETA Mon 23 Nov 17:50 IST
-- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 18:50 IST
-- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 19:50 IST
-- `dfd_lumen_nogate_xception`: pending, ETA Mon 23 Nov 20:50 IST
-- `dfd_reports`: pending, ETA Mon 23 Nov 21:50 IST
-- `lumen2_final`: pending, ETA Mon 23 Nov 22:50 IST
+- `dfd_gend_aug`: pending, ETA Mon 23 Nov 13:54 IST
+- `dfd_lumen2`: pending, ETA Mon 23 Nov 14:54 IST
+- `dfd_base_xception`: pending, ETA Mon 23 Nov 15:54 IST
+- `dfd_augft_xception`: pending, ETA Mon 23 Nov 16:54 IST
+- `dfd_lumen_xception`: pending, ETA Mon 23 Nov 17:54 IST
+- `dfd_fixed_xception`: pending, ETA Mon 23 Nov 18:54 IST
+- `dfd_lumen_nogate_xception`: pending, ETA Mon 23 Nov 19:54 IST
+- `dfd_reports`: pending, ETA Mon 23 Nov 20:54 IST
+- `lumen2_final`: pending, ETA Mon 23 Nov 21:54 IST
 
 ### Runner: background (DFD) (alive: NO - restart it if jobs are pending)
 - `bg_dl_dfd_original`: done
@@ -37,7 +37,7 @@ Last commit: a6b7c9c after lumen2_eval: LUMEN2 eval done: 23/23 conditions
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 22:50 IST
+Meeting-queue estimated finish (upper bound for LUMEN1-no-gate: all 30 epochs, early stopping may end sooner): Mon 23 Nov 21:54 IST
 
 ## Finished results
 
@@ -95,6 +95,20 @@ Frame/video AUC on the FF++ c23 test split (+ c40), 95% video-level bootstrap CI
 |---|---|---|---|---|---|---|---|---|---|---|
 | GenD (public) | 0.9601 [0.9496, 0.9702] | 0.8680 [0.8503, 0.8864] | 0.8695 [0.8516, 0.8879] | 0.8010 [0.7727, 0.8280] | 0.8395 [0.8117, 0.8663] | 0.8211 [0.7925, 0.8485] | 0.8049 [0.7731, 0.8329] | 0.7604 [0.7261, 0.7927] | 0.7882 [0.7593, 0.8154] | 0.7845 [0.7555, 0.8130] |
 | GenD-aug | 0.9730 [0.9644, 0.9804] | 0.9170 [0.9033, 0.9320] | 0.9159 [0.9024, 0.9314] | 0.8570 [0.8303, 0.8817] | 0.9023 [0.8837, 0.9182] | 0.8884 [0.8684, 0.9066] | 0.8999 [0.8810, 0.9179] | 0.8738 [0.8519, 0.8945] | 0.8403 [0.8165, 0.8623] | 0.8492 [0.8261, 0.8715] |
+
+### LUMEN2
+# LUMEN2 evaluation: LUMEN2 minus GenD-aug (pre-declared metrics)
+All numbers: frame AUC unless stated, FF++ c23 test + c40, GenD crops, degradation code/seeds/frame keys identical to GenD-aug. Paired differences LUMEN2 - GenD-aug, 95% video-level bootstrap CI (1000 resamples, ONE shared resample matrix, aggregates bootstrapped jointly). Win = CI entirely on the favourable side of 0 (ECE: lower is better); safety checks pass unless the CI is entirely below 0. Metric definitions: docs/LUMEN2_BRIEF.md (heavy-damage list amended 2026-11-21). The LUMEN-uncond control is NOT run yet, so this is not yet the full publishing rule.
+## Pre-declared metrics
+| metric | role | GenD-aug | LUMEN2 | LUMEN2 - GenD-aug | outcome |
+|---|---|---|---|---|---|
+| Synthetic-degraded mean AUC (17) | primary | 0.9170 [0.9033, 0.9320] | 0.9275 [0.9136, 0.9413] | +0.0105 [+0.0049, +0.0158] | win |
+| c40 AUC | secondary | 0.8570 [0.8324, 0.8801] | 0.8517 [0.8282, 0.8740] | -0.0053 [-0.0159, +0.0045] | tie |
+| Held-out mean AUC (WebP q50/q20, motion k7/k11) | secondary | 0.9159 [0.9024, 0.9314] | 0.9101 [0.8945, 0.9250] | -0.0059 [-0.0133, +0.0009] | tie |
+| ECE (15 bins, all degraded frames) | secondary | 0.1045 [0.0885, 0.1209] | 0.1097 [0.0939, 0.1264] | +0.0052 [+0.0003, +0.0098] | loss |
+| Selective AUC, 80% coverage | secondary | 0.9457 [0.9341, 0.9572] | 0.9495 [0.9376, 0.9599] | +0.0038 [-0.0007, +0.0084] | tie |
+| Selective AUC, 90% coverage | secondary | 0.9312 [0.9186, 0.9445] | 0.9360 [0.9232, 0.9483] | +0.0048 [-0.0002, +0.0099] | tie |
+| Worst-case AUC (min over 22 degraded conditions) | secondary | 0.8403 [0.8169, 0.8613] | 0.8517 [0.8282, 0.8740] | +0.0114 [-0.0064, +0.0305] | tie |
 
 ### LUMEN2 smoke test
 # LUMEN2 smoke test
