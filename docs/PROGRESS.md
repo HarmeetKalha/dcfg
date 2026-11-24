@@ -1,5 +1,8 @@
 # PROGRESS
 
+**LUMEN-uncond DONE (Tue 24 Nov 10:47 IST), queue ended.** Patience stop after epoch 12, best epoch 6 (val 0.9268 vs LUMEN2 0.9305); 1 auto-restarted CUDA crash (18:33 IST Mon). results/lumen2/uncond.md: LUMEN2-uncond synth +0.0056 [+0.0011,+0.0097], heavy +0.0097 [+0.0037,+0.0159], video synth +0.0050 [+0.0006,+0.0089] -> beats uncond on 3/3 won metrics; but losses on c40 -0.0119, held-out -0.0107, ECE +0.0073; DFD clean +0.0199 [+0.0157,+0.0241], DFD mixed_heavy +0.0046 tie. Nothing queued; GPU free.
+
+
 **LUMEN-uncond control (started Mon 23 Nov 14:34 IST).** Definition in DECISIONS.md 2026-11-23 (committed c41dc57 before training). Queue `ops/queue_uncond.txt` (runs root runs/; restart: `DCFG_QUEUE_FILE=ops/queue_uncond.txt setsid nohup ops/run_queue.sh >/dev/null 2>&1 < /dev/null &`): lumen2u_smoke (PASS: step0 logit diff 6e-4, stream 0/25,830 mismatches, sensor loss 0.763->0.512, main -1.339->-1.435, no NaN, resume ok, est 27.2 h for 18 ep; LUMEN parts 1,741,744 = LUMEN2 + 320 const) -> lumen2_uncond_train (retry_supervised.sh 10, DCFG_SUP_NAME=LUMEN-uncond) -> uncond_eval (23 conds) -> dfd_lumen2_uncond (clean + mixed_heavy) -> uncond_report (results/lumen2/uncond.md + ntfy line) then the queue ends. 07:30 IST Tue snapshot: `ops/jobs/uncond_0730.sh` waiting in background (relaunch after a reboot, see script header). Expected: epoch ~90.7 min; patience stop at epoch 12 at the earliest ~08:40 Tue, report ~13:00 Tue; 18-epoch cap ~17:50 Tue, report ~22:00 Tue.
 
 
