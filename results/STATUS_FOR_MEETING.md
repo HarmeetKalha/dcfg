@@ -1,17 +1,17 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Mon 23 Nov 15:35 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Tue 24 Nov 07:30 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: 16ecb02 after lumen2u_smoke: lumen2u_smoke done
+Last commit: ca56e37 PROGRESS: LUMEN-uncond running
 
 ## Queue and ETA
 
 ### Runner: LUMEN-uncond (alive: yes)
 - `lumen2u_smoke`: done
-- `lumen2_uncond_train`: RUNNING: epoch 1 in progress (step 1041); ETA Tue 24 Nov 09:43 IST
-- `uncond_eval`: pending, ETA Tue 24 Nov 11:53 IST
-- `dfd_lumen2_uncond`: pending, ETA Tue 24 Nov 13:08 IST
-- `uncond_report`: pending, ETA Tue 24 Nov 13:48 IST
+- `lumen2_uncond_train`: RUNNING: epoch 12 in progress (11 of max 18 done; step 16289), last val mean AUC 0.91700 (LUMEN2 at epoch 11: 0.92385), best epoch 6 (0.92679), patience counter 5/6; earliest stop (patience, if no new best) ~Tue 24 Nov 08:29 IST, latest (18-epoch cap) ~Tue 24 Nov 17:33 IST; ETA Tue 24 Nov 08:29 IST
+- `uncond_eval`: pending, ETA Tue 24 Nov 10:39 IST
+- `dfd_lumen2_uncond`: pending, ETA Tue 24 Nov 11:54 IST
+- `uncond_report`: pending, ETA Tue 24 Nov 12:34 IST
 
 ### Runner: meeting (alive: yes)
 - `gate_heatmaps_lumen1`: done
@@ -44,7 +44,7 @@ Last commit: 16ecb02 after lumen2u_smoke: lumen2u_smoke done
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-LUMEN-uncond queue estimated finish (assuming the earliest patience stop): Tue 24 Nov 13:48 IST
+LUMEN-uncond queue estimated finish (assuming the earliest patience stop): Tue 24 Nov 12:34 IST
 
 ## Finished results
 
@@ -92,6 +92,35 @@ Full table + paired differences: `results/gate/ablation_xception.md`.
 | lumen_nogate_xception | 0.975 | 0.889 | 0.885 | 0.833 | 0.814 |
 | lumen_xception | 0.974 | 0.899 | 0.887 | 0.826 | 0.830 |
 | augft_xception | 0.974 | 0.929 | 0.917 | 0.872 | 0.882 |
+
+## LUMEN-uncond at Tue 24 Nov 07:30 IST (snapshot, training NOT stopped)
+
+- Current: epoch 12 in progress (step 16289, 11 epochs completed)
+- Best epoch so far: 6 (val mean AUC 0.9268)
+- LUMEN2 best: epoch 6 (0.9305); GenD-aug best: epoch 16 (0.9199)
+
+Validation mean AUC (8 of 32 frames/video, 6 val conditions) at the same epoch:
+
+| epoch | LUMEN-uncond | LUMEN2 | GenD-aug | uncond - LUMEN2 |
+|---|---|---|---|---|
+| 1 | 0.9030 | 0.9076 | 0.8937 | -0.0046 |
+| 2 | 0.9163 | 0.9190 | 0.9023 | -0.0026 |
+| 3 | 0.9216 | 0.9232 | 0.9080 | -0.0016 |
+| 4 | 0.9256 | 0.9244 | 0.9121 | +0.0012 |
+| 5 | 0.9237 | 0.9276 | 0.9146 | -0.0039 |
+| 6 | 0.9268 | 0.9305 | 0.9164 | -0.0037 |
+| 7 | 0.9195 | 0.9269 | 0.9168 | -0.0074 |
+| 8 | 0.9233 | 0.9256 | 0.9175 | -0.0024 |
+| 9 | 0.9206 | 0.9261 | 0.9181 | -0.0055 |
+| 10 | 0.9212 | 0.9274 | 0.9188 | -0.0062 |
+| 11 | 0.9170 | 0.9238 | 0.9187 | -0.0068 |
+| 12 | - | 0.9249 | 0.9197 | - |
+| 13 | - | - | 0.9196 | - |
+| 14 | - | - | 0.9199 | - |
+| 15 | - | - | 0.9197 | - |
+| 16 | - | - | 0.9199 | - |
+| 17 | - | - | 0.9199 | - |
+| 18 | - | - | 0.9198 | - |
 
 ### LUMEN-uncond smoke test
 # LUMEN2 smoke test
