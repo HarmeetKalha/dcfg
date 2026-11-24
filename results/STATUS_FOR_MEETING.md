@@ -1,8 +1,8 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Tue 24 Nov 10:41 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Tue 24 Nov 10:47 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: 75f61e4 after uncond_eval: uncond_eval done
+Last commit: 25c272f after dfd_lumen2_uncond: DFD lumen2_uncond: frame AUC clean 0.8722, mixed_heavy 0.6605
 
 ## Queue and ETA
 
@@ -11,7 +11,7 @@ Last commit: 75f61e4 after uncond_eval: uncond_eval done
 - `lumen2_uncond_train`: done
 - `uncond_eval`: done
 - `dfd_lumen2_uncond`: done
-- `uncond_report`: pending, ETA Tue 24 Nov 11:21 IST
+- `uncond_report`: RUNNING: running; ETA Tue 24 Nov 10:57 IST
 
 ### Runner: meeting (alive: yes)
 - `gate_heatmaps_lumen1`: done
@@ -44,7 +44,7 @@ Last commit: 75f61e4 after uncond_eval: uncond_eval done
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-LUMEN-uncond queue estimated finish (assuming the earliest patience stop): Tue 24 Nov 11:21 IST
+LUMEN-uncond queue estimated finish (assuming the earliest patience stop): Tue 24 Nov 10:57 IST
 
 ## Finished results
 
@@ -92,6 +92,28 @@ Full table + paired differences: `results/gate/ablation_xception.md`.
 | lumen_nogate_xception | 0.975 | 0.889 | 0.885 | 0.833 | 0.814 |
 | lumen_xception | 0.974 | 0.899 | 0.887 | 0.826 | 0.830 |
 | augft_xception | 0.974 | 0.929 | 0.917 | 0.872 | 0.882 |
+
+### LUMEN-uncond control (final)
+# LUMEN-uncond control: LUMEN2 minus LUMEN-uncond (pre-declared metrics)
+LUMEN-uncond = LUMEN2 with the per-image conditioning input of the DCT gate and the LayerNorm generator replaced by ONE learned constant vector (definition: docs/DECISIONS.md 2026-11-23); the sensor still trains with its damage loss. Same code, data, degradation stream, seed and schedule. All numbers frame AUC unless stated, FF++ c23 test + c40, GenD crops, identical frames/degradations for all three models. Paired differences, 95% video-level bootstrap CI (1000 resamples, one shared resample matrix for the three models). Win = CI entirely on the favourable side of 0 (ECE: lower is better).
+Training: stop reason **patience**, best epoch 6 of 12 (val mean AUC 0.9268), parameters 1741744 LUMEN parts.
+## The control question
+Does LUMEN2 beat LUMEN-uncond on the metrics it won against GenD-aug?
+- Synthetic-degraded mean AUC (17): LUMEN2 - uncond +0.0056 [+0.0011, +0.0097] -> **yes** (win)
+- Heavy-damage mean AUC (jpeg_q10, blur_s4, noise_s20, resize_0.25, mixed_heavy): LUMEN2 - uncond +0.0097 [+0.0037, +0.0159] -> **yes** (win)
+- Video AUC, synthetic mean (17): LUMEN2 - uncond +0.0050 [+0.0006, +0.0089] -> **yes** (win)
+**Verdict: LUMEN2 beats uncond on ALL its won metrics: the gain needs per-image conditioning.**
+## Every pre-declared metric
+| metric | role | GenD-aug | LUMEN-uncond | LUMEN2 | LUMEN2 - LUMEN-uncond | outcome | LUMEN-uncond - GenD-aug (context) |
+|---|---|---|---|---|---|---|---|
+| Synthetic-degraded mean AUC (17) | primary | 0.9170 [0.9033, 0.9320] | 0.9218 [0.9075, 0.9361] | 0.9275 [0.9136, 0.9413] | +0.0056 [+0.0011, +0.0097] | win | +0.0048 [-0.0005, +0.0099] (tie) |
+| c40 AUC | secondary | 0.8570 [0.8324, 0.8801] | 0.8636 [0.8400, 0.8864] | 0.8517 [0.8282, 0.8740] | -0.0119 [-0.0224, -0.0015] | loss | +0.0066 [-0.0016, +0.0146] (tie) |
+| Held-out mean AUC (WebP q50/q20, motion k7/k11) | secondary | 0.9159 [0.9024, 0.9314] | 0.9208 [0.9069, 0.9351] | 0.9101 [0.8945, 0.9250] | -0.0107 [-0.0184, -0.0032] | loss | +0.0048 [-0.0011, +0.0108] (tie) |
+| ECE (15 bins, all degraded frames) | secondary | 0.1045 [0.0885, 0.1209] | 0.1025 [0.0860, 0.1198] | 0.1097 [0.0939, 0.1264] | +0.0073 [+0.0031, +0.0116] | loss | -0.0021 [-0.0065, +0.0024] (tie) |
+| Selective AUC, 80% coverage | secondary | 0.9457 [0.9341, 0.9572] | 0.9509 [0.9390, 0.9620] | 0.9495 [0.9376, 0.9599] | -0.0014 [-0.0055, +0.0026] | tie | +0.0052 [+0.0009, +0.0096] (win) |
+| Selective AUC, 90% coverage | secondary | 0.9312 [0.9186, 0.9445] | 0.9370 [0.9240, 0.9498] | 0.9360 [0.9232, 0.9483] | -0.0011 [-0.0056, +0.0033] | tie | +0.0059 [+0.0013, +0.0106] (win) |
+| Worst-case AUC (min over 22 degraded conditions) | secondary | 0.8403 [0.8169, 0.8613] | 0.8573 [0.8329, 0.8756] | 0.8517 [0.8282, 0.8740] | -0.0056 [-0.0186, +0.0134] | tie | +0.0170 [+0.0034, +0.0266] (win) |
+| Heavy-damage mean AUC (jpeg_q10, blur_s4, noise_s20, resize_0.25, mixed_heavy) | secondary | 0.8775 [0.8604, 0.8961] | 0.8857 [0.8678, 0.9042] | 0.8954 [0.8785, 0.9126] | +0.0097 [+0.0037, +0.0159] | win | +0.0082 [+0.0010, +0.0153] (win) |
 
 ## LUMEN-uncond at Tue 24 Nov 07:30 IST (snapshot, training NOT stopped)
 
