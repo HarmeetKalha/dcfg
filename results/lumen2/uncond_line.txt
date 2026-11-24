@@ -1,0 +1,1 @@
+LUMEN2-uncond: synth +0.0056 [+0.0011,+0.0097], heavy +0.0097 [+0.0037,+0.0159], video +0.0050 [+0.0006,+0.0089]; beats uncond on 3/3 won metrics

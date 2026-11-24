@@ -1,0 +1,56 @@
+{
+  "run_id": "lumen2_uncond",
+  "detector": "lumen2_clip_l14",
+  "condition": "mixed_heavy",
+  "split": "test",
+  "compression": "c23",
+  "n_frames": 109449,
+  "n_videos": 3431,
+  "frame_auc": 0.660485587647907,
+  "frame_auc_ci": [
+    0.6401926771683106,
+    0.6802631467174489
+  ],
+  "video_auc": 0.7011674765912054,
+  "video_auc_ci": [
+    0.6753429240795765,
+    0.7270570435689252
+  ],
+  "bootstrap": {
+    "n": 1000,
+    "seed": 0,
+    "unit": "video",
+    "level": 0.95
+  },
+  "fp16": true,
+  "git_commit": "75f61e47b815e2e233d08b6e70fa9931d17c895c",
+  "dfb_commit": "n/a",
+  "timestamp": "2026-11-24T05:11:06.314350+00:00",
+  "scores_file": "scores/lumen2_uncond__mixed_heavy.npz",
+  "pilot": false,
+  "lumen2": true,
+  "model_id": "yermandy/GenD_CLIP_L_14",
+  "hf_revision": "891ce014a0308386c4d7d25b3dcf436a22db5504",
+  "weights_sha256": "d76f0bdfd74a29fe1b1c1b84a80ac92486993e426878e8c7a3944281fbb96833",
+  "gend_commit": "387a42266dd385fbe8f7626c5d3aa03eea3bfaab",
+  "crops": "gend",
+  "preprocessing": "GenD crop: RetinaFace det_10g (largest face, det thr 0.5 then 0.1, DFB-crop fallback), GenD align_face scale 1.3 -> 256x256 re-cropped from the original videos at the SAME 32 DFB frame indices; degradation (our apply_condition, same seeds/keys) applied on the 256 px crop; then GenD/CLIP input transform: PIL bicubic 224x224, CLIP mean/std; frame prob = softmax(l)[1]; video = mean frame prob",
+  "degradation_placement": "256 px crop, before GenD's 224 resize",
+  "input_size": 224,
+  "model": "lumen2_uncond",
+  "conditioning": "constant",
+  "trainable_file": "runs/lumen2_uncond_train/best_trainable.pt",
+  "trainable_sha256": "e69112e5507c60ee13755202617330580114a73ccc6532e2eeb497e26641fa6a",
+  "trained_epoch_1based": 6,
+  "train_val_mean_auc": 0.9267908032122104,
+  "init_is_public_gend": true,
+  "part_params": {
+    "gend_trainable (LayerNorms + head, = GenD-aug)": 104450,
+    "sensor": 772264,
+    "gate (MLP + 2 LN)": 132160,
+    "ln_generator (MLP + U,V)": 837000,
+    "constant conditioning vector": 320,
+    "LUMEN parts total": 1741744
+  },
+  "input": "packed views: damaged 256 crop (sensor) + GenD 224 resize (gate, CLIP)"
+}
