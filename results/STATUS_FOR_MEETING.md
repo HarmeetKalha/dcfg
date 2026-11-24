@@ -1,17 +1,17 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Tue 24 Nov 08:29 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Tue 24 Nov 10:02 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: 1b57b04 after uncond_0730: LUMEN-uncond 07:30: epoch 12 in progress (step 16289, 11 epochs completed
+Last commit: d1163d7 after lumen2_uncond_train: lumen2_uncond_train done
 
 ## Queue and ETA
 
 ### Runner: LUMEN-uncond (alive: yes)
 - `lumen2u_smoke`: done
 - `lumen2_uncond_train`: done
-- `uncond_eval`: pending, ETA Tue 24 Nov 10:39 IST
-- `dfd_lumen2_uncond`: pending, ETA Tue 24 Nov 11:54 IST
-- `uncond_report`: pending, ETA Tue 24 Nov 12:34 IST
+- `uncond_eval`: done
+- `dfd_lumen2_uncond`: pending, ETA Tue 24 Nov 11:17 IST
+- `uncond_report`: pending, ETA Tue 24 Nov 11:57 IST
 
 ### Runner: meeting (alive: yes)
 - `gate_heatmaps_lumen1`: done
@@ -44,7 +44,7 @@ Last commit: 1b57b04 after uncond_0730: LUMEN-uncond 07:30: epoch 12 in progress
 - `bg_recrop_dfd`: done
 - `bg_dfb_pre_dfd`: done
 
-LUMEN-uncond queue estimated finish (assuming the earliest patience stop): Tue 24 Nov 12:34 IST
+LUMEN-uncond queue estimated finish (assuming the earliest patience stop): Tue 24 Nov 11:57 IST
 
 ## Finished results
 
