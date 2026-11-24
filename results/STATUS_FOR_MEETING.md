@@ -1,14 +1,14 @@
 # STATUS FOR MEETING (auto-generated)
 
-Generated Tue 24 Nov 07:30 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
+Generated Tue 24 Nov 08:29 IST by `ops/jobs/meeting_status.py`. Meeting: Tue 24 Nov 08:30 IST. All times IST.
 
-Last commit: ca56e37 PROGRESS: LUMEN-uncond running
+Last commit: 1b57b04 after uncond_0730: LUMEN-uncond 07:30: epoch 12 in progress (step 16289, 11 epochs completed
 
 ## Queue and ETA
 
 ### Runner: LUMEN-uncond (alive: yes)
 - `lumen2u_smoke`: done
-- `lumen2_uncond_train`: RUNNING: epoch 12 in progress (11 of max 18 done; step 16289), last val mean AUC 0.91700 (LUMEN2 at epoch 11: 0.92385), best epoch 6 (0.92679), patience counter 5/6; earliest stop (patience, if no new best) ~Tue 24 Nov 08:29 IST, latest (18-epoch cap) ~Tue 24 Nov 17:33 IST; ETA Tue 24 Nov 08:29 IST
+- `lumen2_uncond_train`: done
 - `uncond_eval`: pending, ETA Tue 24 Nov 10:39 IST
 - `dfd_lumen2_uncond`: pending, ETA Tue 24 Nov 11:54 IST
 - `uncond_report`: pending, ETA Tue 24 Nov 12:34 IST
